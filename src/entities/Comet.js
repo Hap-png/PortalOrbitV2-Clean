@@ -62,8 +62,9 @@ export class Comet {
     // Move the comet
     this.mesh.position.set(x, y, z);
 
-    // THE MAGIC TRICK: Force the comet to always look at the Sun (0, 0, 0)
-    // Because we built the tail pointing backward (-Z), it will always blow away from the sun!
-    this.mesh.lookAt(0, 0, 0);
+    // THE MAGIC TRICK (Fixed): Look away from the Sun!
+    // By aiming at double its current coordinates, the comet stares out into 
+    // deep space, ensuring the tail is always blown perfectly away from the sun.
+    this.mesh.lookAt(x * 2, y * 2, z * 2);
   }
 }
