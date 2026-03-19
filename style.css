@@ -1,0 +1,119 @@
+/* Strip away browser defaults */
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #000000; 
+    color: white;
+    font-family: monospace;
+}
+
+/* The Dashboard UI */
+#ui-container {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 100;
+    pointer-events: none; /* Ensures your mouse clicks pass through to steer the ship */
+    background: rgba(0, 0, 0, 0.4);
+    padding: 15px 25px;
+    border: 1px solid #333;
+    border-radius: 4px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+}
+
+h1 {
+    margin: 0 0 10px 0;
+    font-size: 22px;
+    color: #44aaff;
+    letter-spacing: 2px;
+}
+
+#status {
+    margin: 0;
+    color: #ffaa00;
+    font-size: 14px;
+}
+
+/* --- FLIGHT COMPUTER HUD --- */
+#ship-hud {
+    position: absolute;
+    bottom: 30px;
+    right: 30px;
+    background-color: rgba(0, 15, 5, 0.7); /* Deep transparent green/black */
+    border: 1px solid #00ffcc;
+    color: #00ffcc; /* Cyan/Green glowing text */
+    font-family: 'Courier New', Courier, monospace;
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
+    pointer-events: none; /* Crucial: Lets you click the mouse through the HUD */
+    user-select: none;
+}
+
+.hud-header {
+    font-weight: bold;
+    font-size: 1.2rem;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #00ffcc;
+    padding-bottom: 4px;
+}
+
+.hud-row {
+    font-size: 1rem;
+    margin-top: 5px;
+}
+
+#controls-legend {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    background: rgba(0, 20, 20, 0.85);
+    color: #00ffcc;
+    padding: 15px;
+    border: 1px solid #00ffcc;
+    border-radius: 5px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    pointer-events: none; /* Let clicks pass through to the game */
+    box-shadow: 0 0 15px rgba(0, 255, 204, 0.3);
+    z-index: 100;
+}
+
+#controls-legend h3 {
+    margin: 0 0 10px 0;
+    text-align: center;
+    letter-spacing: 2px;
+}
+
+#controls-legend ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#controls-legend li {
+    margin: 5px 0;
+}
+
+#controls-legend span {
+    font-weight: bold;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px 5px;
+    border-radius: 3px;
+    margin-right: 10px;
+}
+
+/* --- NAV COMPUTER LABELS --- */
+.planet-label {
+    position: absolute;
+    color: white;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8), 0 0 10px rgba(0, 255, 204, 0.5);
+    pointer-events: none; /* Clicks pass through to the ship */
+    white-space: pre-wrap; /* Allows the \n line break for distance */
+    text-align: center;
+    z-index: 50; /* Sits above the stars but below the Dashboard */
+    transition: font-size 0.2s ease, color 0.2s ease; /* Smooth transition for target locks */
+}
