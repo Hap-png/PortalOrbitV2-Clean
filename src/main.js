@@ -631,11 +631,23 @@ function animate() {
   });
 
   // --- NAV COMPUTER: RADAR TRACKING ---
-  //if (navContainer && navContainer.style.display !== "none") {
+
+  // Reset the warp lock every frame. We only turn it on if we have a Winner!
+  ship.hasWarpLock = false;
+
+  // STEP 1: Find the ONE object closest to the dead-center of the crosshairs
+  let bestTarget = null;
+  let smallestAngle = 0.3; // This is your original aim cone size
+
   planets.forEach((planet) => {
-    // 1. GET COORDINATES FIRST (So Phase 2 can see them!)
+    // 1. Get Coordinates
     const planetWorldPos = new THREE.Vector3();
-    const tracker = planet.mesh || planet.group || planet.pivot || planet;
+    const tracker =
+      planet.orbitGroup ||
+      planet.pivot ||
+      planet.group ||
+      planet.mesh ||
+      planet;
 
     if (tracker && tracker.getWorldPosition) {
       tracker.getWorldPosition(planetWorldPos);
@@ -643,37 +655,7 @@ function animate() {
       planetWorldPos.copy(planet.position || new THREE.Vector3());
     }
 
-    // 2. RADAR HUD UPDATE
-    if (planet.uiLabel) {
-      const screenPos = planetWorldPos.clone();
-      screenPos.project(camera);
-
-      if (screenPos.z > 1) {
-        planet.uiLabel.style.display = "none";
-      } else {
-        planet.uiLabel.style.display = "block";
-
-        // 1. FORCE CSS OVERRIDES SO IT SHOWS UP
-        planet.uiLabel.style.position = "absolute";
-        planet.uiLabel.style.color = "white";
-        planet.uiLabel.style.zIndex = "99999";
-
-        // 2. Ensure it has words to display just in case Phase 2 hasn't updated it yet
-        if (!planet.uiLabel.innerText) {
-          planet.uiLabel.innerText = planet.targetName || "Target";
-        }
-
-        const x = (screenPos.x * 0.5 + 0.5) * window.innerWidth;
-        const y = (-screenPos.y * 0.5 + 0.5) * window.innerHeight;
-
-        planet.uiLabel.style.left = `${x}px`;
-        planet.uiLabel.style.top = `${y}px`;
-        planet.uiLabel.style.transform = "translate(-50%, -50%)";
-      }
-    }
-    // PHASE 2: TARGET LOCK MATH
-
-    // PHASE 2: TARGET LOCK MATH (Simplified back to raw positions!)
+    // 2. Calculate Angle and Distance
     const shipForward = new THREE.Vector3(0, 0, -1)
       .applyQuaternion(ship.mesh.quaternion)
       .normalize();
@@ -684,56 +666,83 @@ function animate() {
     const angle = shipForward.angleTo(directionToPlanet);
     const distance = ship.mesh.position.distanceTo(planetWorldPos);
 
-    // NEW: Use the custom grab distance, or default to 500 if it doesn't have one!
-    const grabDistance = planet.tetherDistance || 300;
+    // Save these so we don't calculate them twice in Step 2!
+    planet.savedWorldPos = planetWorldPos;
+    planet.savedDistance = distance;
 
+    // 3. THE TIE-BREAKER: Is it closer to the center than the last one we checked?
+    if (angle < smallestAngle) {
+      smallestAngle = angle; // Shrink the cone to beat!
+      bestTarget = planet; // Crown the new winner
+    }
+  });
+
+  // STEP 2: Paint the HUD!
+  planets.forEach((planet) => {
     if (!planet.uiLabel) return;
 
-    planet.uiLabel.innerText = `${planet.targetName}\n${distance.toFixed(0)} km`;
+    // Calculate Screen Position
+    const screenPos = planet.savedWorldPos.clone();
+    screenPos.project(camera);
 
-    // 1. Target locked AND outside the safety zone (Green HUD)
-    if (angle < 0.3 && distance > grabDistance) {
-      planet.uiLabel.style.color = "#00ff00";
-      planet.uiLabel.style.textShadow = "0 0 15px #00ff00";
-      planet.uiLabel.style.fontSize = "32px";
-      planet.uiLabel.style.zIndex = "10";
-      ship.hasWarpLock = true;
+    if (screenPos.z > 1) {
+      planet.uiLabel.style.display = "none";
+      return;
+    }
 
-      // 2. TETHER ZONE! Aimed correctly, close enough to park! (Orange HUD)
-    } else if (angle < 0.3 && distance <= grabDistance) {
-      planet.uiLabel.style.color = "#ffaa00";
-      planet.uiLabel.style.textShadow = "0 0 15px #ffaa00";
-      planet.uiLabel.style.fontSize = "32px";
-      planet.uiLabel.style.zIndex = "10";
+    // Position the text
+    planet.uiLabel.style.display = "block";
+    planet.uiLabel.style.position = "absolute";
+    planet.uiLabel.style.zIndex = "99999";
 
-      ship.hasWarpLock = true;
+    if (!planet.uiLabel.innerText) {
+      planet.uiLabel.innerText = planet.targetName || "Target";
+    }
 
-      // --- GHOST TETHER ACTIVATION (The Silence Fix) ---
-      // 1. Only try to lock if we aren't already docking
-      // --- THE MUZZLE FIX ---
-      if (ship.tetherTarget !== planet && !ship.isDocking) {
-        ship.tetherTarget = planet;
+    const x = (screenPos.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-screenPos.y * 0.5 + 0.5) * window.innerHeight;
 
-        // Anchor the position NOW so it doesn't "Lost tether" on the next frame
-        if (!planet.prevPos) planet.prevPos = new THREE.Vector3();
-        //const tracker = planet.pivot || planet.group || planet.mesh;
-        const tracker =
-          planet.orbitGroup || planet.pivot || planet.group || planet.mesh;
-        if (tracker) tracker.getWorldPosition(planet.prevPos);
+    planet.uiLabel.style.left = `${x}px`;
+    planet.uiLabel.style.top = `${y}px`;
+    planet.uiLabel.style.transform = "translate(-50%, -50%)";
 
-        //console.log("Locked tether to:", planet.targetName);
+    const grabDistance = planet.tetherDistance || 300;
+    planet.uiLabel.innerText = `${planet.targetName}\n${planet.savedDistance.toFixed(0)} km`;
+
+    // --- APPLY COLORS BASED ON THE WINNER ---
+    if (planet === bestTarget) {
+      if (planet.savedDistance > grabDistance) {
+        // 1. GREEN HUD (Locked, but too far to park)
+        planet.uiLabel.style.color = "#00ff00";
+        planet.uiLabel.style.textShadow = "0 0 15px #00ff00";
+        planet.uiLabel.style.fontSize = "32px";
+        planet.uiLabel.style.zIndex = "10";
+        ship.hasWarpLock = true; // Engage warp drive!
+      } else {
+        // 2. ORANGE HUD (Tether Zone!)
+        planet.uiLabel.style.color = "#ffaa00";
+        planet.uiLabel.style.textShadow = "0 0 15px #ffaa00";
+        planet.uiLabel.style.fontSize = "32px";
+        planet.uiLabel.style.zIndex = "10";
+        ship.hasWarpLock = true; // Engage warp drive!
+
+        // Anchor the tether
+        if (ship.tetherTarget !== planet && !ship.isDocking) {
+          ship.tetherTarget = planet;
+          if (!planet.prevPos) planet.prevPos = new THREE.Vector3();
+          const tracker =
+            planet.orbitGroup || planet.pivot || planet.group || planet.mesh;
+          if (tracker) tracker.getWorldPosition(planet.prevPos);
+        }
       }
     } else {
-      // 3. TARGET NOT ALIGNED (Blue HUD)
-      if (planet.uilabel) {
-        // <-- THE SAFETY SHIELD
-        planet.uilabel.style.color = "#0088ff";
-        planet.uilabel.style.textShadow = "0 0 5px #0088ff";
-        planet.uilabel.style.fontSize = "24px";
-        planet.uilabel.style.zIndex = "1";
-      }
-    } // This closes the Blue HUD 'else' block
-  }); // This closes the planets.forEach loop
+      // 3. BACKGROUND HUD (Your original Blue styling for un-aligned targets)
+      planet.uiLabel.style.color = "#0088ff";
+      planet.uiLabel.style.textShadow = "0 0 5px #0088ff";
+      planet.uiLabel.style.fontSize = "24px";
+      planet.uiLabel.style.zIndex = "1";
+    }
+  });
 
   // Update Hubble specifically if it's not in the planets array
   //if (window.hubble) {
