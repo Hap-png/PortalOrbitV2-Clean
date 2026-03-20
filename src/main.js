@@ -183,7 +183,7 @@ const moon = new Planet(
   "assets/textures/moon.jpg",
   100,
   0.05,
-  0.05, // The spin speed
+  0, // The spin speed
   2.5, // The real 2026 angle
 );
 moon.targetName = "Moon";
@@ -958,7 +958,6 @@ window.addEventListener("keydown", (e) => {
       console.log("SYSTEM ERROR: No target locked. Cannot engage beam.");
       ship.isDocking = false;
     }
-    
   }
 }); // THIS is the only one that should have a );
 

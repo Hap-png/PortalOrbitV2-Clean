@@ -13,10 +13,10 @@ const REAL_ORBIT_DAYS = {
   Pluto: 90560.0,
   Moon: 27.322,
   Titan: 15.945,
-  Io: 1.769,       // Zips around in less than 2 days!
-  Europa: 3.551,   // Half the speed of Io
+  Io: 1.769, // Zips around in less than 2 days!
+  Europa: 3.551, // Half the speed of Io
   Ganymede: 7.155, // Half the speed of Europa
-  Callisto: 16.689 // The slow, outer giant
+  Callisto: 16.689, // The slow, outer giant
 };
 
 const REAL_ROTATION_DAYS = {
@@ -120,9 +120,11 @@ export class Planet {
 
         this.mesh.rotation.y = solarRotation + calibrationOffset;
       } else if (this.name === "Moon" || this.name === "Titan") {
-    // Perfect Tidal Lock: Copy the orbit's rotation exactly
-    this.mesh.rotation.y = this.pivot.rotation.y + Math.PI; 
-} else {
+        // Perfect Tidal Lock: The pivot arm already handles the orbit rotation natively!
+        // We just need a static offset number to aim the correct texture face at Earth.
+        // Try Math.PI, or if it's off by 90 degrees, try Math.PI / 2 or -Math.PI / 2
+        this.mesh.rotation.y = Math.PI;
+      } else {
         // Normal rotation for all other planets
         this.mesh.rotation.y = rotationAngle;
       }
