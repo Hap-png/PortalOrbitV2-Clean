@@ -51,7 +51,12 @@ export class CustomStation {
         this.orbitGroup.rotation.y = currentSimDays * this.orbitSpeed;
         
         if (this.visibleModel) {
-            this.visibleModel.rotation.y = currentSimDays * this.spinSpeed;
+            // 1. THE SPIN: Roll like a wheel instead of a spinning top
+            this.visibleModel.rotation.x = currentSimDays * this.spinSpeed; 
+            
+            // 2. THE ORIENTATION: Lock the steering wheel so it faces the way you want
+            // (Try Math.PI, Math.PI / 2, or 0 to get the exact angle you need)
+            this.visibleModel.rotation.y = Math.PI / 2; 
         }
     }
 } // <--- This is the final closing brace for the whole Class!
