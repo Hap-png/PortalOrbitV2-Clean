@@ -432,7 +432,10 @@ const saturnBase = new CustomStation(
   0.5, // <--- Orbit Speed (Changed from 0 so it actually moves!)
   1.0, // <--- Spin Speed (Changed from 0.0005 so it spins nicely!)
   Math.PI, // <--- Starting Angle (Keep it!)
+  
 );
+// Tell it to spin like a wheel!
+saturnBase.spinAxis = 'x';
 planets.push(saturnBase);
 
 // Add the Metallic Shine to Saturn Prime once the model loads
@@ -641,13 +644,11 @@ function animate() {
 
   planets.forEach((planet) => {
     // 1. Get Coordinates
+    // 1. Get Coordinates
     const planetWorldPos = new THREE.Vector3();
-    const tracker =
-      planet.orbitGroup ||
-      planet.pivot ||
-      planet.group ||
-      planet.mesh ||
-      planet;
+    
+    // --- THE FIX: Move planet.mesh to the very front of the line! ---
+    const tracker = planet.mesh || planet.orbitGroup || planet.pivot || planet.group || planet;
 
     if (tracker && tracker.getWorldPosition) {
       tracker.getWorldPosition(planetWorldPos);
