@@ -346,6 +346,46 @@ const ganymede = new Planet(
   0.05,
   5.0,
 );
+
+// --- JUPITER SPACE STATION ---
+const jupiterStation = new CustomStation(
+  "Jupiter Station", // Name on the HUD
+  "assets/models/jupss01.glb", // Your new model path
+  jupiter, // Parent Planet
+  1.0, // Scale (We can tweak this once you see it!)
+  350.0, // Orbit Radius (Make sure this is slightly LARGER than Europa's!)
+  0.015, // Orbit Speed (Make sure this is slightly SMALLER than Europa's!)
+  0.5, // Spin Speed (Nice, slow rotation)
+  0, // Starting Angle
+);
+
+// Tell it to spin like a wheel (if it's a ring station like Saturn Prime)
+// Change to 'y' or 'z' if it tumbles weirdly!
+jupiterStation.spinAxis = "y";
+
+// Hide the HUD text when you are far away
+jupiterStation.hideDistance = 3000;
+
+// Add the high-tech metallic shine
+jupiterStation.onLoad = () => {
+  // --- TILT FIX GOES HERE! ---
+  jupiterStation.mesh.rotation.z = Math.PI / 2;
+  jupiterStation.mesh.traverse((child) => {
+    if (child.isMesh) {
+      // The Deep Space Paint Job
+      child.material.metalness = 0.4; // Lowered from 0.8 so it reflects less "black space"
+      child.material.roughness = 0.5; // Raised from 0.2 to catch light better
+
+      // Bonus: Uncomment this line if the station still looks too dark!
+      // It forces the base color of the metal to be a lighter gray.
+      // child.material.color.setHex(0xaaaaaa);
+    }
+  });
+};
+
+// Add to the tracking array exactly ONCE
+planets.push(jupiterStation);
+
 ganymede.pivot.rotation.y = 2.8;
 jupiter.orbitGroup.add(ganymede.pivot);
 planets.push(ganymede);
@@ -432,10 +472,9 @@ const saturnBase = new CustomStation(
   0.5, // <--- Orbit Speed (Changed from 0 so it actually moves!)
   1.0, // <--- Spin Speed (Changed from 0.0005 so it spins nicely!)
   Math.PI, // <--- Starting Angle (Keep it!)
-  
 );
 // Tell it to spin like a wheel!
-saturnBase.spinAxis = 'x';
+saturnBase.spinAxis = "x";
 planets.push(saturnBase);
 
 // Add the Metallic Shine to Saturn Prime once the model loads
@@ -646,9 +685,14 @@ function animate() {
     // 1. Get Coordinates
     // 1. Get Coordinates
     const planetWorldPos = new THREE.Vector3();
-    
+
     // --- THE FIX: Move planet.mesh to the very front of the line! ---
-    const tracker = planet.mesh || planet.orbitGroup || planet.pivot || planet.group || planet;
+    const tracker =
+      planet.mesh ||
+      planet.orbitGroup ||
+      planet.pivot ||
+      planet.group ||
+      planet;
 
     if (tracker && tracker.getWorldPosition) {
       tracker.getWorldPosition(planetWorldPos);
