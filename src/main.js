@@ -213,6 +213,7 @@ earthStation.pivot.updateMatrixWorld(true);
 
 // --- ACTIVATE STATION RADAR BEACON ---
 earthStation.targetName = "Space Station";
+earthStation.name = "Earth Station";
 earthStation.tetherDistance = 30; // <-- ADD THIS LINE! Forces you to get super close!
 
 // Create the HTML text element for the station
@@ -984,12 +985,6 @@ renderer.render(scene, camera);
 window.addEventListener("keydown", (e) => {
   const key = e.key.toLowerCase();
 
-  if (key === "m") {
-    const legend = document.getElementById("controls-legend");
-    if (legend)
-      legend.style.display = legend.style.display === "none" ? "block" : "none";
-  }
-
   if (key === "t") {
     const nav = document.getElementById("nav-computer-layer") || navContainer;
     if (nav) {
@@ -1000,14 +995,28 @@ window.addEventListener("keydown", (e) => {
 
   // 5. SHIP SYSTEM KEYS
   if (key === "x" && typeof ship.toggleShip === "function") ship.toggleShip();
+
   // Smart Tractor Beam Trigger
   if (key === "b") {
     if (ship.tetherTarget) {
-      ship.isDocking = !ship.isDocking;
-      console.log(
-        "TRACTOR BEAM STATE:",
-        ship.isDocking ? "ENGAGED" : "DISENGAGED",
-      );
+      
+      // SAFETY BLANKET: If the target has a name, use it. If not, use an empty string so it doesn't crash!
+      const targetName = ship.tetherTarget.name || ""; 
+      
+      console.log("The computer sees the target name as: [" + targetName + "]");
+      
+      // Now it is completely safe to check the text
+      if (targetName.includes("Earth") || targetName === "Space Station") {
+        ship.isDocking = !ship.isDocking;
+        console.log(
+          "TRACTOR BEAM STATE:",
+          ship.isDocking ? "ENGAGED" : "DISENGAGED"
+        );
+      } else {
+        console.log("SYSTEM ERROR: Tractor beam incompatible with " + (targetName || "Unnamed Target"));
+        ship.isDocking = false; 
+      }
+      
     } else {
       console.log("SYSTEM ERROR: No target locked. Cannot engage beam.");
       ship.isDocking = false;

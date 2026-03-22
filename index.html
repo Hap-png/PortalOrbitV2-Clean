@@ -67,5 +67,78 @@
     99;"></div>
     
     <script type="module" src="src/main.js"></script>
+
+    <button id="manualBtn" style="position: absolute; bottom: 70px; left: 20px; background: transparent; color: #00ffff; border: 1px solid #00ffff; padding: 8px 16px; font-family: monospace; cursor: pointer; z-index: 100;">USER MANUAL</button>
+
+<button id="creditsBtn" style="position: absolute; bottom: 20px; left: 20px; background: transparent; color: #00ffff; border: 1px solid #00ffff; padding: 8px 16px; font-family: monospace; cursor: pointer; z-index: 100;">DATABANKS</button>
+
+<div id="manualModal" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0, 10, 20, 0.95); border: 1px solid #00ffff; color: #00ffff; padding: 25px; font-family: monospace; z-index: 101; width: 85%; max-width: 650px; box-shadow: 0 0 15px rgba(0, 255, 255, 0.2); max-height: 85vh; overflow-y: auto;">
+    <h2 style="margin-top: 0; text-align: center; border-bottom: 1px dashed #00ffff; padding-bottom: 10px; font-size: 1.3em;">FLIGHT MANUAL</h2>
+
+    <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3);">TARGETING MODES:</h3>
+    <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
+        <li>> <span style="color: #00ff00;">Green Target:</span> Intercept using Warp Thrusters (W / S)</li>
+        <li>> <span style="color: #ffaa00;">Orange Target:</span> Intercept by Time Surfing (/ or ] [)</li>
+    </ul>
+
+    <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">FLIGHT CONTROLS:</h3>
+    <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
+        <li>> <strong>W S</strong> - Warp Thrusters Forward / Reverse</li>
+        <li>> <strong>I O</strong> - Impulse Thrusters Forward / Reverse</li>
+        <li>> <strong>A D</strong> - Slide Left / Right</li>
+        <li>> <strong>F C</strong> - Slide Up / Down</li>
+        <li>> <strong>Arrows</strong> - Steer (Pitch/Yaw)</li>
+        <li>> <strong>SPACE</strong> - Brake</li>
+    </ul>
+
+    <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">TIME SURFING:</h3>
+    <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
+        <li>> <strong>/</strong> - 1/2 Speed Time Forward</li>
+        <li>> <strong>] [</strong> - 1 to 9 Speed Time Forward / Reverse</li>
+        <li>> <strong>N</strong> - Return to Real Time <span style="color: #ff5555; font-size: 0.8em;">[NEW]</span></li>
+    </ul>
+
+    <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">SYSTEMS:</h3>
+    <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
+        <li>> <strong>T</strong> - Toggle Nav Computer</li>
+        <li>> <strong>X</strong> - Swap Transport / Shuttle</li>
+        <li>> <strong>B</strong> - Docking Tractor Beam at Earth Space Station</li>
+    </ul>
+
+    <button id="closeManualBtn" style="display: block; margin: 25px auto 0; background: #00ffff; color: #000; border: none; padding: 8px 16px; font-family: monospace; font-weight: bold; cursor: pointer;">CLOSE MANUAL</button>
+</div>
+
+<div id="creditsModal" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0, 10, 20, 0.95); border: 1px solid #00ffff; color: #00ffff; padding: 25px; font-family: monospace; z-index: 101; width: 80%; max-width: 650px; box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);">
+    <h2 style="margin-top: 0; text-align: center; border-bottom: 1px dashed #00ffff; padding-bottom: 10px; font-size: 1.2em;">PORTAL ORBIT V2: ASSET CREDITS</h2>
+    <ul style="list-style: none; padding: 0; font-size: 0.9em; line-height: 1.5;">
+        <li style="margin-bottom: 10px;">> <strong>"Space Station V"</strong> by uperesito (CC BY 4.0)</li>
+        <li style="margin-bottom: 10px;">> <strong>"Freeport Space Station"</strong> by Inditrion Dradnon (CC BY 4.0)</li>
+        <li style="margin-bottom: 10px;">> <strong>"Sci-Fi Space Station #2"</strong> by Helindu (CC BY 4.0)</li>
+        <li style="margin-bottom: 10px;">> <strong>"Blue Sun Space station"</strong> by whitejackal (CC BY 4.0)</li>
+        <li style="margin-bottom: 10px;">> <strong>"Space Shuttle"</strong> by ASHISH (CC BY 4.0)</li>
+        <li style="margin-bottom: 10px;">> <strong>"Light Fighter Spaceship"</strong> by Kerem Kavalcı. Original design by EVERSPACE / Tobias Frank (Sketchfab Free Standard)</li>
+        <li style="margin-bottom: 10px;">> <strong>Milky Way Panorama:</strong> ESO/S. Brunier</li>
+        <li style="margin-bottom: 10px;">> <strong>Solar System Textures & Models:</strong> NASA / NASA 3D Resources</li>
+    </ul>
+    <button id="closeCreditsBtn" style="display: block; margin: 20px auto 0; background: #00ffff; color: #000; border: none; padding: 8px 16px; font-family: monospace; font-weight: bold; cursor: pointer;">CLOSE TRANSMISSION</button>
+</div>
+
+<script>
+    // Manual Toggle Logic
+    document.getElementById('manualBtn').addEventListener('click', () => {
+        document.getElementById('manualModal').style.display = 'block';
+    });
+    document.getElementById('closeManualBtn').addEventListener('click', () => {
+        document.getElementById('manualModal').style.display = 'none';
+    });
+
+    // Credits Toggle Logic
+    document.getElementById('creditsBtn').addEventListener('click', () => {
+        document.getElementById('creditsModal').style.display = 'block';
+    });
+    document.getElementById('closeCreditsBtn').addEventListener('click', () => {
+        document.getElementById('creditsModal').style.display = 'none';
+    });
+</script>
 </body>
 </html>
