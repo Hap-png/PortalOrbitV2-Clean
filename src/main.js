@@ -14,6 +14,11 @@ let backgroundMusic;
 // --- 1. SCENE SETUP ---
 const scene = new THREE.Scene();
 
+// --- TACTICAL MAP MEMORY ---
+let isMapMode = false;
+const savedCameraPos = new THREE.Vector3();
+const savedCameraRot = new THREE.Euler();
+
 // Changed the near clipping plane from 0.1 to 0.001!
 const camera = new THREE.PerspectiveCamera(
   60,
@@ -40,10 +45,19 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 // Add this right after you create your camera and renderer!
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true; // This gives the camera that smooth, cinematic glide when you let go of the mouse
+
+// --- 1. PREVENT ORBITCONTROLS FROM STEALING SHIP STEERING ---
+controls.enablePan = false; // Disables arrow-key camera sliding completely
+controls.enableKeys = false; // Older Three.js safeguard
+
+// THE FIX: Erase its memory of the arrow keys so it ignores them!
+controls.keys = { LEFT: "", UP: "", RIGHT: "", BOTTOM: "" };
+
+// --- 2. CINEMATIC GLIDE & ZOOM LIMITS ---
+controls.enableDamping = true; // Smooth cinematic glide
 controls.dampingFactor = 0.05;
-controls.minDistance = 0.1; // Prevents you from accidentally zooming inside the ship's hull
-controls.maxDistance = 50; // Prevents you from zooming out past the planets
+controls.minDistance = 0.1; // Prevents zooming inside the hull
+controls.maxDistance = 50; // Prevents zooming out past the planets
 
 // We need a variable to track the ship's movement frame-by-frame
 const previousShipPosition = new THREE.Vector3();
@@ -536,6 +550,62 @@ timeManager.updateUI();
 // --- THE MISSING LINK ---
 const clock = new THREE.Clock();
 
+// --- TACTICAL MAP LIGHTING ---
+// A soft, shadowless light that hits all sides of the planets
+const tacticalMapLight = new THREE.AmbientLight(0xffffff, 0.0); // Starts at 0 intensity (Off)
+scene.add(tacticalMapLight);
+
+// ==========================================
+// TACTICAL MAP: ORBIT LINES
+// ==========================================
+const orbitLinesFolder = new THREE.Group();
+orbitLinesFolder.visible = false; // Hidden by default so they don't clutter the flight view!
+scene.add(orbitLinesFolder);
+
+// A quick function to draw a massive, hair-thin glowing ring
+function createOrbitLine(radius) {
+  const curve = new THREE.EllipseCurve(
+    0,
+    0, // Center X, Center Y
+    radius,
+    radius, // X-radius, Y-radius
+    0,
+    2 * Math.PI, // Draw a full 360-degree circle
+    false, // Clockwise
+    0, // Rotation
+  );
+
+  // Break the curve into 128 smooth segments
+  const points = curve.getPoints(128);
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+
+  // A softer, lighter tactical blue with more transparency
+  const material = new THREE.LineBasicMaterial({
+    color: 0x66bbff, // Soft Sky Blue
+    transparent: true,
+    opacity: 0.6, // Dropped to 40% solid for a ghostlier feel
+  });
+
+  const orbitLine = new THREE.Line(geometry, material);
+
+  // CRITICAL FIX: Curves draw standing up (like a Ferris wheel).
+  // We have to knock them flat so they circle the Sun's equator!
+  orbitLine.rotation.x = Math.PI / 2;
+
+  orbitLinesFolder.add(orbitLine);
+}
+
+// Draw the planetary orbits using your exact distances!
+createOrbitLine(800); // Mercury
+createOrbitLine(1400); // Venus
+createOrbitLine(2000); // Earth
+createOrbitLine(4000); // Mars
+createOrbitLine(10000); // Jupiter
+createOrbitLine(18000); // Saturn
+createOrbitLine(35000); // Uranus
+createOrbitLine(55000); // Neptune
+createOrbitLine(75000); // Pluto
+
 // --- THE ANIMATION LOOP ---
 function animate() {
   requestAnimationFrame(animate);
@@ -918,21 +988,30 @@ function animate() {
 
   // --- DYNAMIC CHASE CAMERA (HYBRID RIG) ---
   if (ship && ship.mesh) {
-    const deltaMove = new THREE.Vector3().subVectors(
-      ship.mesh.position,
-      previousShipPosition,
-    );
-    camera.position.add(deltaMove);
+    if (!isMapMode) {
+      const deltaMove = new THREE.Vector3().subVectors(
+        ship.mesh.position,
+        previousShipPosition,
+      );
+      camera.position.add(deltaMove);
 
-    const prevQuatInv = previousShipQuaternion.clone().invert();
-    const deltaQuat = ship.mesh.quaternion.clone().multiply(prevQuatInv);
+      const prevQuatInv = previousShipQuaternion.clone().invert();
+      const deltaQuat = ship.mesh.quaternion.clone().multiply(prevQuatInv);
 
-    const offset = camera.position.clone().sub(ship.mesh.position);
-    offset.applyQuaternion(deltaQuat);
-    camera.position.copy(ship.mesh.position).add(offset);
+      const offset = camera.position.clone().sub(ship.mesh.position);
+      offset.applyQuaternion(deltaQuat);
+      camera.position.copy(ship.mesh.position).add(offset);
 
-    controls.target.copy(ship.mesh.position);
-    controls.update();
+      controls.target.copy(ship.mesh.position);
+
+      // Let the pilot use the mouse to look around the ship!
+      controls.enableRotate = true;
+
+      controls.update();
+    } else {
+      // Map mode rotation is also allowed
+      controls.enableRotate = true;
+    }
 
     previousShipPosition.copy(ship.mesh.position);
     previousShipQuaternion.copy(ship.mesh.quaternion);
@@ -991,7 +1070,45 @@ window.addEventListener("keydown", (e) => {
       nav.style.display = nav.style.display === "none" ? "block" : "none";
       console.log("HUD Toggled:", nav.style.display);
     }
+  } // <--- THOSE ARE THE TWO BRACKETS
+
+  // --- TACTICAL MAP TELEPORT (M KEY) ---
+  if (key === "m") {
+    isMapMode = !isMapMode;
+
+    if (isMapMode) {
+      savedCameraPos.copy(camera.position);
+      savedCameraRot.copy(camera.rotation);
+
+      camera.position.set(20000, 20000, 20000);
+      camera.up.set(0, 1, 0);
+      controls.target.set(0, 0, 0);
+      controls.maxDistance = Infinity;
+
+      orbitLinesFolder.visible = true;
+      tacticalMapLight.intensity = 1.5; // Blast it with light!
+
+      controls.update();
+      console.log("TACTICAL MAP: ENGAGED");
+    } else {
+      camera.up.set(0, 1, 0);
+      camera.position.copy(savedCameraPos);
+      camera.rotation.copy(savedCameraRot);
+
+      if (ship && ship.mesh) {
+        controls.target.copy(ship.mesh.position);
+      }
+      controls.maxDistance = 5000;
+
+      orbitLinesFolder.visible = false;
+      tacticalMapLight.intensity = 0.0; // Turn off the map light
+
+      controls.update();
+      console.log("TACTICAL MAP: DISENGAGED");
+    }
   }
+
+  // ... Your other keys (like X or the Tractor Beam B) continue down here ...
 
   // 5. SHIP SYSTEM KEYS
   if (key === "x" && typeof ship.toggleShip === "function") ship.toggleShip();
@@ -999,24 +1116,25 @@ window.addEventListener("keydown", (e) => {
   // Smart Tractor Beam Trigger
   if (key === "b") {
     if (ship.tetherTarget) {
-      
       // SAFETY BLANKET: If the target has a name, use it. If not, use an empty string so it doesn't crash!
-      const targetName = ship.tetherTarget.name || ""; 
-      
+      const targetName = ship.tetherTarget.name || "";
+
       console.log("The computer sees the target name as: [" + targetName + "]");
-      
+
       // Now it is completely safe to check the text
       if (targetName.includes("Earth") || targetName === "Space Station") {
         ship.isDocking = !ship.isDocking;
         console.log(
           "TRACTOR BEAM STATE:",
-          ship.isDocking ? "ENGAGED" : "DISENGAGED"
+          ship.isDocking ? "ENGAGED" : "DISENGAGED",
         );
       } else {
-        console.log("SYSTEM ERROR: Tractor beam incompatible with " + (targetName || "Unnamed Target"));
-        ship.isDocking = false; 
+        console.log(
+          "SYSTEM ERROR: Tractor beam incompatible with " +
+            (targetName || "Unnamed Target"),
+        );
+        ship.isDocking = false;
       }
-      
     } else {
       console.log("SYSTEM ERROR: No target locked. Cannot engage beam.");
       ship.isDocking = false;

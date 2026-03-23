@@ -74,9 +74,11 @@ h1 {
     border-radius: 5px;
     font-family: 'Courier New', Courier, monospace;
     font-size: 14px;
-    pointer-events: none; /* Let clicks pass through to the game */
+    pointer-events: auto; /* Lets your mouse interact with the close button */
     box-shadow: 0 0 15px rgba(0, 255, 204, 0.3);
     z-index: 100;
+    
+    height: auto; /* This tells the box to grow as tall as the text needs! */
 }
 
 #controls-legend h3 {

@@ -21,43 +21,7 @@
         <h1>PORTAL ORBIT V2</h1>
         <p id="status">Status: Awaiting Main Module...</p>
     </div>
-
-    <div id="controls-legend" style="display: none;">
-        <h3>FLIGHT MANUAL</h3>
-        <hr>
-        
-        <p style="font-size: 0.9em; color: #aaa; margin-bottom: 5px;">TARGETING MODES:</p>
-        <ul style="margin-bottom: 15px;">
-            <li><span style="color: #4ade80;">Green Target:</span> Intercept using Warp Thrusters (W / S)</li>
-            <li><span style="color: #fb923c;">Orange Target:</span> Intercept by Time Surfing (/ or ] [)</li>
-        </ul>
-        <hr>
-
-        <p style="font-size: 0.9em; color: #aaa; margin-bottom: 5px;">FLIGHT CONTROLS:</p>
-        <ul>
-            <li><span>W  S</span> - Warp Thrusters Forward / Reverse</li>
-            <li><span>I  O</span> - Impulse Thrusters Forward / Reverse</li>
-            <li><span>A  D</span> - Slide Left / Right</li>
-            <li><span>F  C</span> - Slide Up / Down</li>
-            <li><span>Arrows</span> - Steer (Pitch/Yaw)</li>
-            <li><span>SPACE</span> - Brake</li>
-        </ul>
-
-        <p style="font-size: 0.9em; color: #aaa; margin-top: 10px; margin-bottom: 5px;">TIME SURFING:</p>
-        <ul>
-            <li><span>/</span> - 1/2 Speed Time Forward </li>
-            <li><span>]  [</span> - 1 to 9 Speed Time Forward / Reverse</li>
-        </ul>
-
-        <p style="font-size: 0.9em; color: #aaa; margin-top: 10px; margin-bottom: 5px;">SYSTEMS:</p>
-        <ul>
-            <li><span>T</span> - Toggle Nav Computer</li>
-            <li><span>X</span> - Swap Transport / Shuttle</li>
-            <li><span>B</span> - Docking Tractor Beam</li>
-            <li><span>M</span> - Open/Close Key Manual</li>
-        </ul>
-    </div>
-
+    
     <div id="ship-hud">
         <div class="hud-header">FLIGHT COMPUTER</div>
         <div class="hud-row">ENGINES: <span id="hud-engines">IDLE</span></div>
@@ -103,6 +67,13 @@
         <li>> <strong>T</strong> - Toggle Nav Computer</li>
         <li>> <strong>X</strong> - Swap Transport / Shuttle</li>
         <li>> <strong>B</strong> - Docking Tractor Beam at Earth Space Station</li>
+        <li>> <strong>M</strong> - 3D Tactical Map Viewing</li>
+    </ul>
+
+    <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">CAMERA:</h3>
+    <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
+        <li>> <strong>Left Click + Drag</strong> - Orbit Camera</li>
+        <li>> <strong>Scroll Wheel</strong> - Zoom In / Out</li>
     </ul>
 
     <button id="closeManualBtn" style="display: block; margin: 25px auto 0; background: #00ffff; color: #000; border: none; padding: 8px 16px; font-family: monospace; font-weight: bold; cursor: pointer;">CLOSE MANUAL</button>
