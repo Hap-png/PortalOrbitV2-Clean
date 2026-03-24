@@ -23,6 +23,13 @@ const REAL_ORBIT_DAYS = {
   Tethys: 1.888      // Almost two days
 };
 
+const REAL_INCLINATION_DEGREES = {
+  Mercury: 7.0, Venus: 3.4, Earth: 0.0, Mars: 1.8, Jupiter: 1.3,
+  Saturn: 2.5, Uranus: 0.8, Neptune: 1.8, Pluto: 17.2,
+  Moon: 5.1, Io: 0.04, Europa: 0.47, Ganymede: 0.2, Callisto: 0.2,
+  Mimas: 1.5, Enceladus: 0.0, Tethys: 1.1, Titan: 0.3
+};
+
 const REAL_ROTATION_DAYS = {
   Mercury: 58.6,
   Venus: -243.0, // Retrograde!
@@ -47,8 +54,10 @@ export class Planet {
     startingAngle = 0, // <--- 1. Add this!
   ) {
     this.name = name;
-    this.startingAngle = startingAngle; // <--- 2. Add this!
-    // ... keep the rest of your constructor ...
+    this.startingAngle = startingAngle;
+    
+    // --- NEW: Grab the tilt and convert to radians ---
+    this.inclinationRad = (REAL_INCLINATION_DEGREES[name] || 0) * (Math.PI / 180);
 
     this.orbitPeriod = REAL_ORBIT_DAYS[name] || 365 / fallbackOrbitSpeed;
     this.rotationPeriod = REAL_ROTATION_DAYS[name] || 1 / fallbackRotationSpeed;
@@ -94,12 +103,16 @@ export class Planet {
 
   update(currentSimDays) {
     if (this.orbitPeriod > 0) {
-      // Add this.startingAngle at the very end of the line:
+      // 1. Move around the circle (Your existing code)
       this.pivot.rotation.y =
         (currentSimDays / this.orbitPeriod) * (Math.PI * 2) +
         this.startingAngle;
+
+      // 2. THE RESTORATION: Physically bob the planet up and down along the Y-axis!
+      // This uses the orbit radius (position.x) and the current angle to calculate true height.
+      this.orbitGroup.position.y = 
+        this.orbitGroup.position.x * Math.sin(this.pivot.rotation.y) * Math.tan(this.inclinationRad);
     }
-    // ... rest of the update function ...
 
     // 2. Spin the planet mesh on its own axis (Day/Night)
     if (this.rotationPeriod > 0) {

@@ -671,49 +671,53 @@ const orbitLinesFolder = new THREE.Group();
 orbitLinesFolder.visible = false; // Hidden by default so they don't clutter the flight view!
 scene.add(orbitLinesFolder);
 
-// A quick function to draw a massive, hair-thin glowing ring
-function createOrbitLine(radius) {
-  const curve = new THREE.EllipseCurve(
-    0,
-    0, // Center X, Center Y
-    radius,
-    radius, // X-radius, Y-radius
-    0,
-    2 * Math.PI, // Draw a full 360-degree circle
-    false, // Clockwise
-    0, // Rotation
-  );
+// ==========================================
+// TACTICAL MAP: ORBIT LINES (Mathematically Synced)
+// ==========================================
 
-  // Break the curve into 128 smooth segments
-  const points = curve.getPoints(128);
+function createOrbitLine(radius, inclinationDegrees = 0) {
+  const points = [];
+  const segments = 128;
+  
+  // Safety check: ensure the tilt is a number, default to 0
+  const tilt = parseFloat(inclinationDegrees) || 0;
+  const inclinationRad = tilt * (Math.PI / 180);
+
+  // Draw the circle point by point to match the engine math
+  for (let i = 0; i <= segments; i++) {
+    const theta = (i / segments) * Math.PI * 2;
+
+    // The EXACT trigonometry your Planet.js engine is using!
+    const x = Math.cos(theta) * radius;
+    const z = -Math.sin(theta) * radius; 
+    const y = radius * Math.sin(theta) * Math.tan(inclinationRad);
+
+    points.push(new THREE.Vector3(x, y, z));
+  }
+
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
 
-  // A softer, lighter tactical blue with more transparency
+  // Bumped opacity to 0.8 so they glow brightly against the starfield
   const material = new THREE.LineBasicMaterial({
-    color: 0x66bbff, // Soft Sky Blue
+    color: 0x66bbff, 
     transparent: true,
-    opacity: 0.6, // Dropped to 40% solid for a ghostlier feel
+    opacity: 0.8, 
   });
 
   const orbitLine = new THREE.Line(geometry, material);
-
-  // CRITICAL FIX: Curves draw standing up (like a Ferris wheel).
-  // We have to knock them flat so they circle the Sun's equator!
-  orbitLine.rotation.x = Math.PI / 2;
-
   orbitLinesFolder.add(orbitLine);
 }
 
-// Draw the planetary orbits using your exact distances!
-createOrbitLine(800); // Mercury
-createOrbitLine(1400); // Venus
-createOrbitLine(2000); // Earth
-createOrbitLine(4000); // Mars
-createOrbitLine(10000); // Jupiter
-createOrbitLine(18000); // Saturn
-createOrbitLine(35000); // Uranus
-createOrbitLine(55000); // Neptune
-createOrbitLine(75000); // Pluto
+// --- EXACT REAL-WORLD TILT CALLS ---
+createOrbitLine(800, 7.0);     // Mercury (Highly tilted)
+createOrbitLine(1400, 3.4);    // Venus
+createOrbitLine(2000, 0.0);    // Earth (Baseline)
+createOrbitLine(4000, 1.8);    // Mars
+createOrbitLine(10000, 1.3);   // Jupiter
+createOrbitLine(18000, 2.5);   // Saturn
+createOrbitLine(35000, 0.8);   // Uranus
+createOrbitLine(55000, 1.8);   // Neptune
+createOrbitLine(75000, 17.2);  // Pluto (Massive tilt!)
 
 // --- THE ANIMATION LOOP ---
 function animate() {
