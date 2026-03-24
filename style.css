@@ -119,3 +119,30 @@ h1 {
     z-index: 50; /* Sits above the stars but below the Dashboard */
     transition: font-size 0.2s ease, color 0.2s ease; /* Smooth transition for target locks */
 }
+/* --- CINEMATIC TACTICAL OPTICS (16:9) --- */
+#tactical-optics {
+    width: 320px;
+    height: 180px;
+    background: rgba(0, 255, 204, 0.05);
+    border: 2px solid #00ffcc;
+    box-shadow: 0 0 20px rgba(0, 255, 204, 0.4), inset 0 0 30px rgba(0, 255, 204, 0.4);
+    pointer-events: auto;
+    cursor: grab;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#tactical-optics:active {
+    cursor: grabbing;
+}
+
+/* The targeting dot in the middle */
+#optics-center-dot {
+    width: 6px;
+    height: 6px;
+    background: #00ffcc;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #00ffcc;
+    pointer-events: none;
+}

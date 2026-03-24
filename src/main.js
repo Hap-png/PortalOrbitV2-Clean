@@ -27,6 +27,74 @@ const camera = new THREE.PerspectiveCamera(
   1000000,
 );
 
+// ==========================================
+// --- TACTICAL OPTICS MASTER SETUP (16:9 CINEMATIC) ---
+// ==========================================
+
+// 1. The Cinematic Lens (Aspect ratio updated to 16 / 9)
+const opticsCamera = new THREE.PerspectiveCamera(5, 16 / 9, 0.1, 50000);
+
+// 2. The Video Screen (No more border-radius clipping)
+const opticsCanvas = document.createElement("canvas");
+opticsCanvas.style.width = "100%";
+opticsCanvas.style.height = "100%";
+opticsCanvas.style.position = "absolute";
+opticsCanvas.style.top = "0";
+opticsCanvas.style.left = "0";
+opticsCanvas.style.zIndex = "-1";
+document.getElementById("tactical-optics").appendChild(opticsCanvas);
+
+// 3. The Optics Renderer (Defaulting to 320x180)
+const opticsRenderer = new THREE.WebGLRenderer({
+  canvas: opticsCanvas,
+  antialias: true,
+  alpha: true,
+});
+opticsRenderer.setSize(320, 180);
+opticsRenderer.setClearColor(0x000000, 0);
+
+// 4. Math Helpers
+const opticsRaycaster = new THREE.Raycaster();
+const opticsMouseNDC = new THREE.Vector2();
+const eclipticPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const opticsTarget = new THREE.Vector3();
+
+// 5. Optics Zoom & Resize Controls
+const opticsLensUI = document.getElementById("tactical-optics");
+let currentLensWidth = 320; // We now track width, and math handles the height!
+
+if (opticsLensUI) {
+  opticsLensUI.addEventListener(
+    "wheel",
+    (event) => {
+      event.stopPropagation();
+      event.preventDefault();
+
+      const scrollDirection = Math.sign(event.deltaY);
+
+      if (event.shiftKey) {
+        // --- Resize the Glass (Maintaining 16:9 Ratio) ---
+        currentLensWidth += scrollDirection * -32;
+        currentLensWidth = Math.max(160, Math.min(currentLensWidth, 960));
+
+        const currentLensHeight = currentLensWidth * (9 / 16); // The 16:9 Math lock
+
+        opticsLensUI.style.width = `${currentLensWidth}px`;
+        opticsLensUI.style.height = `${currentLensHeight}px`;
+        opticsRenderer.setSize(currentLensWidth, currentLensHeight);
+      } else {
+        // --- Zoom the Lens ---
+        const zoomFactor = scrollDirection > 0 ? 1.1 : 0.9;
+        opticsCamera.fov *= zoomFactor;
+        opticsCamera.fov = Math.max(0.1, Math.min(opticsCamera.fov, 40));
+        opticsCamera.updateProjectionMatrix();
+      }
+    },
+    { passive: false },
+  );
+}
+// ==========================================
+
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
   logarithmicDepthBuffer: true,
@@ -401,28 +469,25 @@ jupiterStation.onLoad = () => {
 // Add to the tracking array exactly ONCE
 planets.push(jupiterStation);
 
+// --- Ganymede: The Giant Moon ---
 ganymede.pivot.rotation.y = 2.8;
 jupiter.orbitGroup.add(ganymede.pivot);
-planets.push(ganymede);
 ganymede.targetName = "Ganymede";
-
-// --- Make Ganymede "Latchable" ---
-ganymede.targetName = "Ganymede";
-ganymede.tetherDistance = 25; // Closer than a planet since the moon is smaller
+ganymede.tetherDistance = 25;
 planets.push(ganymede);
 
-// Callisto: The furthest out of the main four
+// --- Callisto: The Furthest Main Moon ---
 const callisto = new Planet(
   "Callisto",
   1.1,
-  "assets/textures/jupiter_callisto.jpg", // Using your filename!
-  550, // Nice and far out
+  "assets/textures/jupiter_callisto.jpg",
+  550,
   0.02,
   0.5,
 );
-
 callisto.targetName = "Callisto";
 callisto.tetherDistance = 20;
+callisto.pivot.rotation.y = 4.0; // Give it a starting position so it isn't lined up with others
 jupiter.orbitGroup.add(callisto.pivot);
 planets.push(callisto);
 
@@ -464,13 +529,57 @@ const titan = new Planet(
 );
 titan.pivot.rotation.y = 0.8;
 saturn.orbitGroup.add(titan.pivot);
-planets.push(titan);
 titan.targetName = "Titan";
 
 // --- Make Titan "Latchable" ---
 titan.targetName = "Titan";
 titan.tetherDistance = 40; // A bit more room for the hazy giant
 planets.push(titan);
+
+// --- Mimas (The Death Star Moon) ---
+const mimas = new Planet(
+  "Mimas",
+  0.5, // Much smaller than Titan
+  "assets/textures/mimas.jpg",
+  62, // Closest of the three, just outside the rings
+  0.15, // Fastest orbital speed
+  0.02,
+);
+mimas.pivot.rotation.y = 1.2; // Staggers the starting position
+saturn.orbitGroup.add(mimas.pivot);
+mimas.targetName = "Mimas";
+mimas.tetherDistance = 15; // Tighter tether for a tiny moon
+planets.push(mimas);
+
+// --- Enceladus (The Ice Moon) ---
+const enceladus = new Planet(
+  "Enceladus",
+  0.6, // Slightly larger than Mimas
+  "assets/textures/enceladus.jpg",
+  65, // Pushed out a bit further
+  0.12, // Slightly slower than Mimas
+  0.02,
+);
+enceladus.pivot.rotation.y = 3.5;
+saturn.orbitGroup.add(enceladus.pivot);
+enceladus.targetName = "Enceladus";
+enceladus.tetherDistance = 16;
+planets.push(enceladus);
+
+// --- Tethys (The Cratered Moon) ---
+const tethys = new Planet(
+  "Tethys",
+  1.0, // Largest of these three, but still 1/3 the size of Titan
+  "assets/textures/tethys.jpg",
+  85, // Furthest of the inner moons
+  0.09, // Slowest of the three inner moons
+  0.02,
+);
+tethys.pivot.rotation.y = 5.1;
+saturn.orbitGroup.add(tethys.pivot);
+tethys.targetName = "Tethys";
+tethys.tetherDistance = 20;
+planets.push(tethys);
 
 // --- 2. LIGHTING: PLANET SHINE ---
 const planetShine = new THREE.PointLight(0xffe4b5, 1.2, 0);
@@ -1022,6 +1131,34 @@ function animate() {
     window.stars.rotation.y += 0.00005; // Very slow crawl
   }
 
+  // --- UPDATE TACTICAL OPTICS FEED ---
+  const opticsUI = document.getElementById("optics-container");
+  if (opticsUI && opticsUI.style.display === "block") {
+    // 1. Find the exact center of the UI circle on the screen
+    const opticsRect = document
+      .getElementById("tactical-optics")
+      .getBoundingClientRect();
+    const centerX = opticsRect.left + opticsRect.width / 2;
+    const centerY = opticsRect.top + opticsRect.height / 2;
+
+    // 2. Convert to Three.js coordinates (-1 to +1)
+    opticsMouseNDC.x = (centerX / window.innerWidth) * 2 - 1;
+    opticsMouseNDC.y = -(centerY / window.innerHeight) * 2 + 1;
+
+    // 3. Shoot a targeting laser through the UI dot to the solar system floor
+    opticsRaycaster.setFromCamera(opticsMouseNDC, camera);
+    opticsRaycaster.ray.intersectPlane(eclipticPlane, opticsTarget);
+
+    if (opticsTarget) {
+      // 4. Position the optics camera with the main camera, but point it at the target
+      opticsCamera.position.copy(camera.position);
+      opticsCamera.lookAt(opticsTarget);
+
+      // 5. Broadcast the live video feed to the circle!
+      opticsRenderer.render(scene, opticsCamera);
+    }
+  }
+
   renderer.render(scene, camera);
 }
 
@@ -1179,6 +1316,51 @@ window.addEventListener("contextmenu", (event) => {
   } else {
     document.body.style.cursor = "none"; // Turn it completely invisible
   }
+});
+// 2. Dragging Logic (With Precision Aim)
+let isDraggingOptics = false;
+let lastMouseX = 0;
+let lastMouseY = 0;
+
+opticsLens.addEventListener("mousedown", (e) => {
+  isDraggingOptics = true;
+  lastMouseX = e.clientX;
+  lastMouseY = e.clientY;
+
+  // Lock in the exact starting position so it doesn't snap
+  const rect = opticsContainer.getBoundingClientRect();
+  opticsContainer.style.left = `${rect.left}px`;
+  opticsContainer.style.top = `${rect.top}px`;
+  opticsContainer.style.right = "auto"; // Release the right anchor
+});
+
+window.addEventListener("mousemove", (e) => {
+  if (!isDraggingOptics) return;
+
+  // Calculate how far the mouse moved since the last frame
+  let deltaX = e.clientX - lastMouseX;
+  let deltaY = e.clientY - lastMouseY;
+
+  // PRECISION CLUTCH: Gear down the movement if Ctrl is held
+  if (e.ctrlKey) {
+    deltaX *= 0.25; // 1/4th speed (You can change this to 0.5 for half speed)
+    deltaY *= 0.25;
+  }
+
+  // Apply the movement to the glass
+  const currentLeft = parseFloat(opticsContainer.style.left);
+  const currentTop = parseFloat(opticsContainer.style.top);
+
+  opticsContainer.style.left = `${currentLeft + deltaX}px`;
+  opticsContainer.style.top = `${currentTop + deltaY}px`;
+
+  // Save the current mouse position for the next frame
+  lastMouseX = e.clientX;
+  lastMouseY = e.clientY;
+});
+
+window.addEventListener("mouseup", () => {
+  isDraggingOptics = false;
 });
 
 animate();
