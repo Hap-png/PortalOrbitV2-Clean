@@ -8,6 +8,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RingedPlanet } from "./entities/RingedPlanet.js";
 import { CustomStation } from "./entities/CustomStation.js";
 import { Comet } from "./entities/Comet.js";
+import { GLTFLoader } from "https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
 
 let backgroundMusic;
 
@@ -214,68 +215,12 @@ controls.update();
 previousShipPosition.copy(ship.mesh.position);
 
 // Create the Sun
-const sun = new Star("Sun", 40, "assets/textures/sun.jpg", 0.02);
+const sun = new Star("Sun", 90, "assets/textures/sun.jpg", 0.02);
 scene.add(sun.mesh);
 
-// Create Earth & Moon
-// Create Earth
-const earth = new Planet(
-  "Earth",
-  10,
-  "assets/textures/earth.jpg",
-  2000,
-  0.5,
-  1.0, // Added back the rotation speed you were missing
-  1.7, // THE REAL 2026 ANGLE
-);
-
-// DELETE THIS LINE: earth.pivot.rotation.y = 1.2;
-// It was overwriting your 2026 position!
-earth.targetName = "Earth";
-scene.add(earth.pivot);
-planets.push(earth);
-//earth.uiLabel.style.marginTop = "40px";
-
-// --- HUBBLE (Layered & Stable) ---
-const hubble = new CustomStation(
-  "Hubble",
-  "assets/models/hubble.glb",
-  earth,
-  0.08, // Scale
-  40.0, // Orbit Radius
-  2.5, // <--- THE GAS PEDAL: Orbit Speed (was 0.0005)
-  0.5, // <--- THE SPIN: Spin Speed (was 0.0005)
-  Math.PI, // Starting Angle
-);
-
-// Add the docking safety parameters
-hubble.targetName = "Hubble";
-hubble.isPlanet = true;
-hubble.tetherDistance = 25;
-
-// Push the REAL Hubble into the Nav Computer list!
-planets.push(hubble);
-console.log("Hubble is now a valid docking target!");
-
-// --- THE MOON (Outer Layer) ---
-// Moving it to 100 makes the Earth-Moon system feel much more vast
-const moon = new Planet(
-  "Moon",
-  0.5,
-  "assets/textures/moon.jpg",
-  100,
-  0.05,
-  0, // The spin speed
-  2.5, // The real 2026 angle
-);
-moon.targetName = "Moon";
-moon.tetherDistance = 15;
-earth.orbitGroup.add(moon.pivot);
-planets.push(moon);
-
 // --- THE ROGUE COMET ---
-// Name, Long Radius (400), Short Radius (80), Speed (0.01), Up/Down Tilt (40)
-const halleys = new Comet("Halley's Comet", 400.0, 80.0, 0.01, 40.0);
+// Name, Long Radius (400), Short Radius (100), Speed (0.1), Up/Down Tilt (40)
+const halleys = new Comet("Halley's Comet", 400.0, 100.0, 0.01, 40.0);
 
 // Because the comet doesn't use a pivot group, we add its mesh directly to the scene
 scene.add(halleys.mesh);
@@ -283,65 +228,11 @@ scene.add(halleys.mesh);
 // Push it to the Nav Computer!
 planets.push(halleys);
 
-//const earthStation = new SpaceStation(earth);
-// 1. DISABLE THE GREYBOX (Don't delete it, just comment it out!)
-const earthStation = new SpaceStation(earth);
-// --- STEP 3: STATION OFFSET ---
-// This swings the station to the "side" of Earth so labels don't overlap
-earthStation.pivot.rotation.y = Math.PI / 2;
+// ==========================================
+// --- INNER PLANETS ---
+// ==========================================
 
-// Safety: Update its matrix so the tether doesn't panic
-earthStation.pivot.updateMatrixWorld(true);
-
-// --- ACTIVATE STATION RADAR BEACON ---
-earthStation.targetName = "Space Station";
-earthStation.name = "Earth Station";
-earthStation.tetherDistance = 30; // <-- ADD THIS LINE! Forces you to get super close!
-
-// Create the HTML text element for the station
-const stationLabel = document.createElement("div");
-stationLabel.className = "planet-label";
-stationLabel.style.position = "absolute";
-stationLabel.style.color = "white";
-stationLabel.style.marginTop = "-40px";
-stationLabel.style.fontFamily = "monospace";
-stationLabel.style.pointerEvents = "none";
-document.getElementById("nav-computer-layer").appendChild(stationLabel);
-
-// Attach the label and push the station into the Nav Computer's tracking list!
-earthStation.uiLabel = stationLabel;
-planets.push(earthStation);
-
-// Create Mars
-const mars = new Planet(
-  "Mars",
-  1.5,
-  "assets/textures/mars.jpg",
-  4000,
-  0.3,
-  3.5,
-);
-// ... after the Mars Planet constructor ...
-mars.targetName = "Mars"; // Move this up
-mars.pivot.rotation.y = 4.0;
-scene.add(mars.pivot);
-planets.push(mars); // Push it last so the label engine sees the name immediately
-
-// --- DEPLOY STATIONS ---
-
-// 1. Re-deploy the Mars Station
-const marsOutpost = new CustomStation(
-  "Mars Station",
-  "assets/models/marss01.glb",
-  mars,
-  0.1, // Scale
-  8.0, // Orbit Radius (Pushed out to 8 so it clears the planet)
-  2.0, // <--- NEW: Orbit Speed (Much faster!)
-  5.0, // <--- NEW: Spin Speed
-);
-planets.push(marsOutpost);
-
-// --- THE INNER PLANETS ---
+// --- CREATE MERCURY ---
 const mercury = new Planet(
   "Mercury",
   3.8,
@@ -355,6 +246,7 @@ scene.add(mercury.pivot);
 planets.push(mercury);
 mercury.targetName = "Mercury";
 
+// --- CREATE VENUS ---
 const venus = new Planet(
   "Venus",
   9.5,
@@ -368,9 +260,128 @@ scene.add(venus.pivot);
 planets.push(venus);
 venus.targetName = "Venus";
 
-// (Earth and Mars are already here in your code)
+// ==========================================
+// EARTH, MOON, HUBBLE, SPACE STATION
+// ==========================================
 
-// --- THE GAS GIANTS ---
+// --- CREATE EARTH ---
+const earth = new Planet(
+  "Earth",
+  10,
+  "assets/textures/earth.jpg",
+  2000,
+  0.5,
+  1.0, // Added back the rotation speed you were missing
+  1.7, // THE REAL 2026 ANGLE
+);
+earth.targetName = "Earth";
+scene.add(earth.pivot);
+planets.push(earth);
+
+// --- CREATE MOON ---
+// Moving it to 100 makes the Earth-Moon system feel much more vast
+const moon = new Planet(
+  "Moon",
+  1.5,
+  "assets/textures/moon.jpg",
+  100,
+  0.05,
+  0, // The spin speed
+  2.5, // The real 2026 angle
+);
+moon.targetName = "Moon";
+moon.tetherDistance = 15;
+earth.orbitGroup.add(moon.pivot);
+planets.push(moon);
+
+// --- CREATE HUBBLE ---
+const hubble = new CustomStation(
+  "Hubble",
+  "assets/models/hubble.glb",
+  earth,
+  0.08, // Scale
+  40.0, // Orbit Radius
+  2.5, // <--- THE GAS PEDAL: Orbit Speed (was 0.0005)
+  0.5, // <--- THE SPIN: Spin Speed (was 0.0005)
+  Math.PI, // Starting Angle
+);
+// Add the docking safety parameters
+hubble.targetName = "Hubble";
+hubble.isPlanet = true;
+hubble.tetherDistance = 25;
+// Push the REAL Hubble into the Nav Computer list!
+planets.push(hubble);
+console.log("Hubble is now a valid docking target!");
+
+// --- CREATE EARTH SPACE STATION ---
+const earthStation = new SpaceStation(earth);
+earthStation.pivot.rotation.y = Math.PI / 2;
+earthStation.pivot.updateMatrixWorld(true);
+// --- ACTIVATE STATION RADAR BEACON ---
+earthStation.targetName = "Space Station";
+earthStation.name = "Earth Station";
+earthStation.tetherDistance = 30; // <-- ADD THIS LINE! Forces you to get super close!
+// Create the HTML text element for the station
+const stationLabel = document.createElement("div");
+stationLabel.className = "planet-label";
+stationLabel.style.position = "absolute";
+stationLabel.style.color = "white";
+stationLabel.style.marginTop = "-40px";
+stationLabel.style.fontFamily = "monospace";
+stationLabel.style.pointerEvents = "none";
+document.getElementById("nav-computer-layer").appendChild(stationLabel);
+earthStation.uiLabel = stationLabel;
+planets.push(earthStation);
+
+// --- CREATE MARS ---
+const mars = new Planet(
+  "Mars",
+  3.5,
+  "assets/textures/mars.jpg",
+  4000,
+  0.3,
+  3.5,
+);
+mars.targetName = "Mars"; // Move this up
+mars.pivot.rotation.y = 4.0;
+scene.add(mars.pivot);
+planets.push(mars); // Push it last so the label engine sees the name immediately
+
+// --- CREATE PHOBOS ---
+const phobosPivot = new THREE.Group();
+mars.orbitGroup.add(phobosPivot);
+const gltfLoader = new GLTFLoader();
+gltfLoader.load("assets/models/phobos.glb", (gltf) => {
+  const phobosMesh = gltf.scene;
+  phobosMesh.scale.set(0.01, 0.01, 0.01);
+  phobosMesh.position.x = 6.5;
+  phobosPivot.add(phobosMesh);
+  const phobosTarget = {
+    targetName: "Phobos", // The text that appears on the HUD
+    mesh: phobosMesh, // What the radar actually points at
+    tetherDistance: 100, // How close to get before turning Orange (Tether zone)
+    orbitGroup: phobosPivot, // For tether tracking math
+  };
+  planets.push(phobosTarget);
+});
+
+// --- CREATE MARS STATION ---
+const marsOutpost = new CustomStation(
+  "Mars Station",
+  "assets/models/marss01.glb",
+  mars,
+  0.1, // Scale
+  8.0, // Orbit Radius (Pushed out to 8 so it clears the planet)
+  2.0, // <--- NEW: Orbit Speed (Much faster!)
+  5.0, // <--- NEW: Spin Speed
+);
+planets.push(marsOutpost);
+
+// ==========================================
+// --- GAS GIANTS ---
+// ==========================================
+
+// --- CREATE JUPITER ---
 const jupiter = new Planet(
   "Jupiter",
   70,
@@ -383,20 +394,19 @@ jupiter.pivot.rotation.y = 1.5;
 scene.add(jupiter.pivot);
 planets.push(jupiter);
 jupiter.targetName = "Jupiter";
-// --- JUPITER'S MOONS ---
-// 1. Io (Volcanic Moon - Closest!)
+
+// --- CREATE IO ---
 const io = new Planet("Io", 0.9, "assets/textures/io.jpg", 150, 0.15, 1.2);
 io.pivot.rotation.y = 4.5;
 jupiter.orbitGroup.add(io.pivot);
 planets.push(io);
 io.targetName = "Io";
-
 // --- Make Io "Latchable" ---
 io.targetName = "Io";
 io.tetherDistance = 15; // Nice and close for the volcanic moon
 planets.push(io);
 
-// 2. Europa (Ice Moon - Further out!)
+// ---CREATE EUROPA ---
 const europa = new Planet(
   "Europa",
   0.8,
@@ -405,22 +415,18 @@ const europa = new Planet(
   0.1,
   3.5,
 );
-
-// Force the material to be visible and ignore transparency issues
 europa.mesh.material.transparent = false;
 europa.mesh.material.needsUpdate = true;
-
 europa.pivot.rotation.y = 1.2;
 jupiter.orbitGroup.add(europa.pivot);
 planets.push(europa);
 europa.targetName = "Europa";
-
 // --- Make Europa "Latchable" ---
 europa.targetName = "Europa";
 europa.tetherDistance = 15; // Perfect for ice-crust inspections
 planets.push(europa);
 
-// 3. Ganymede (The Giant Moon - Furthest of the three!)
+// ---CREATE GANYMEDE ---
 const ganymede = new Planet(
   "Ganymede",
   3,
@@ -429,54 +435,13 @@ const ganymede = new Planet(
   0.05,
   5.0,
 );
-
-// --- JUPITER SPACE STATION ---
-const jupiterStation = new CustomStation(
-  "Jupiter Station", // Name on the HUD
-  "assets/models/jupss01.glb", // Your new model path
-  jupiter, // Parent Planet
-  1.0, // Scale (We can tweak this once you see it!)
-  350.0, // Orbit Radius (Make sure this is slightly LARGER than Europa's!)
-  0.015, // Orbit Speed (Make sure this is slightly SMALLER than Europa's!)
-  0.5, // Spin Speed (Nice, slow rotation)
-  0, // Starting Angle
-);
-
-// Tell it to spin like a wheel (if it's a ring station like Saturn Prime)
-// Change to 'y' or 'z' if it tumbles weirdly!
-jupiterStation.spinAxis = "y";
-
-// Hide the HUD text when you are far away
-jupiterStation.hideDistance = 3000;
-
-// Add the high-tech metallic shine
-jupiterStation.onLoad = () => {
-  // --- TILT FIX GOES HERE! ---
-  jupiterStation.mesh.rotation.z = Math.PI / 2;
-  jupiterStation.mesh.traverse((child) => {
-    if (child.isMesh) {
-      // The Deep Space Paint Job
-      child.material.metalness = 0.4; // Lowered from 0.8 so it reflects less "black space"
-      child.material.roughness = 0.5; // Raised from 0.2 to catch light better
-
-      // Bonus: Uncomment this line if the station still looks too dark!
-      // It forces the base color of the metal to be a lighter gray.
-      // child.material.color.setHex(0xaaaaaa);
-    }
-  });
-};
-
-// Add to the tracking array exactly ONCE
-planets.push(jupiterStation);
-
-// --- Ganymede: The Giant Moon ---
 ganymede.pivot.rotation.y = 2.8;
 jupiter.orbitGroup.add(ganymede.pivot);
 ganymede.targetName = "Ganymede";
 ganymede.tetherDistance = 25;
 planets.push(ganymede);
 
-// --- Callisto: The Furthest Main Moon ---
+// --- CREATE CALLISTO ---
 const callisto = new Planet(
   "Callisto",
   1.1,
@@ -491,7 +456,34 @@ callisto.pivot.rotation.y = 4.0; // Give it a starting position so it isn't line
 jupiter.orbitGroup.add(callisto.pivot);
 planets.push(callisto);
 
-// --- 1. PLANET SETUP: SATURN ---
+// --- JUPITER SPACE STATION ---
+const jupiterStation = new CustomStation(
+  "Jupiter Station", // Name on the HUD
+  "assets/models/jupss01.glb", // Your new model path
+  jupiter, // Parent Planet
+  1.0, // Scale (We can tweak this once you see it!)
+  350.0, // Orbit Radius (Make sure this is slightly LARGER than Europa's!)
+  0.015, // Orbit Speed (Make sure this is slightly SMALLER than Europa's!)
+  0.5, // Spin Speed (Nice, slow rotation)
+  0, // Starting Angle
+);
+jupiterStation.spinAxis = "y";
+// Hide the HUD text when you are far away
+jupiterStation.hideDistance = 3000;
+jupiterStation.onLoad = () => {
+  // --- TILT FIX GOES HERE! ---
+  jupiterStation.mesh.rotation.z = Math.PI / 2;
+  jupiterStation.mesh.traverse((child) => {
+    if (child.isMesh) {
+      // The Deep Space Paint Job
+      child.material.metalness = 0.4; // Lowered from 0.8 so it reflects less "black space"
+      child.material.roughness = 0.5; // Raised from 0.2 to catch light better
+    }
+  });
+};
+planets.push(jupiterStation);
+
+// --- CREATE SATURN ---
 const saturn = new RingedPlanet(
   "Saturn",
   60, // Planet Radius
@@ -503,40 +495,18 @@ const saturn = new RingedPlanet(
   0.05, // Orbit Speed
   3.4, // Rotation Speed
 );
-
-// Apply Photoshop-ready material settings
 if (saturn.mesh) {
   saturn.mesh.material.roughness = 1.0;
   saturn.mesh.material.metalness = 0.0;
   saturn.mesh.material.color.setHex(0xffffff);
 }
-
 saturn.pivot.rotation.y = 0.5;
 saturn.targetName = "Saturn";
 saturn.tetherDistance = 400;
 scene.add(saturn.pivot);
 planets.push(saturn);
 
-// --- SATURN'S MOON ---
-// Titan (The Hazy Giant)
-const titan = new Planet(
-  "Titan",
-  3.0,
-  "assets/textures/saturn_titan.png", // <--- The correct file name and extension!
-  280,
-  0.02,
-  0.02,
-);
-titan.pivot.rotation.y = 0.8;
-saturn.orbitGroup.add(titan.pivot);
-titan.targetName = "Titan";
-
-// --- Make Titan "Latchable" ---
-titan.targetName = "Titan";
-titan.tetherDistance = 40; // A bit more room for the hazy giant
-planets.push(titan);
-
-// --- Mimas (The Death Star Moon) ---
+// --- CREATE MIMAS ---
 const mimas = new Planet(
   "Mimas",
   0.5, // Much smaller than Titan
@@ -551,7 +521,7 @@ mimas.targetName = "Mimas";
 mimas.tetherDistance = 15; // Tighter tether for a tiny moon
 planets.push(mimas);
 
-// --- Enceladus (The Ice Moon) ---
+// --- CREATE ENCELADUS ---
 const enceladus = new Planet(
   "Enceladus",
   0.6, // Slightly larger than Mimas
@@ -566,10 +536,10 @@ enceladus.targetName = "Enceladus";
 enceladus.tetherDistance = 16;
 planets.push(enceladus);
 
-// --- Tethys (The Cratered Moon) ---
+// --- CREATE TETHYS ---
 const tethys = new Planet(
   "Tethys",
-  1.0, // Largest of these three, but still 1/3 the size of Titan
+  0.8, // Largest of these three, but still 1/3 the size of Titan
   "assets/textures/tethys.jpg",
   85, // Furthest of the inner moons
   0.09, // Slowest of the three inner moons
@@ -581,12 +551,30 @@ tethys.targetName = "Tethys";
 tethys.tetherDistance = 20;
 planets.push(tethys);
 
-// --- 2. LIGHTING: PLANET SHINE ---
-const planetShine = new THREE.PointLight(0xffe4b5, 1.2, 0);
-planetShine.position.set(20000, 10000, 80000);
-scene.add(planetShine);
+// --- CREATE TITAN ---
+const titan = new Planet(
+  "Titan",
+  3.2,
+  "assets/textures/saturn_titan.png", // <--- The correct file name and extension!
+  280,
+  0.02,
+  0.02,
+);
+titan.pivot.rotation.y = 0.8;
+saturn.orbitGroup.add(titan.pivot);
+titan.targetName = "Titan";
 
-// --- 3. STATION SETUP: SATURN PRIME ---
+// --- Make Titan "Latchable" ---
+titan.targetName = "Titan";
+titan.tetherDistance = 40; // A bit more room for the hazy giant
+planets.push(titan);
+
+// --- 2. LIGHTING: PLANET SHINE ---
+//const planetShine = new THREE.PointLight(0xffe4b5, 1.2, 0);
+//planetShine.position.set(20000, 10000, 80000);
+//scene.add(planetShine);
+
+// --- CREATE SATURN SPACE STATION ---
 const saturnBase = new CustomStation(
   "Saturn Prime",
   "assets/models/satss01.glb",
@@ -611,9 +599,9 @@ saturnBase.onLoad = () => {
     }
   });
 };
-
 planets.push(saturnBase);
 
+// --- CREATE URANUS ---
 const uranus = new Planet(
   "Uranus",
   20,
@@ -627,6 +615,7 @@ scene.add(uranus.pivot);
 planets.push(uranus);
 uranus.targetName = "Uranus";
 
+// --- CREATE NEPTUNE ---
 const neptune = new Planet(
   "Neptune",
   19,
@@ -640,14 +629,14 @@ scene.add(neptune.pivot);
 planets.push(neptune);
 neptune.targetName = "Neptune";
 
-// --- THE OUTER RIM ---
+// --- CREATE PLUTO ---
 const pluto = new Planet(
   "Pluto",
   1.8,
   "assets/textures/pluto.png",
   75000,
   0.005,
-  0.5,
+  6.5,
 );
 pluto.pivot.rotation.y = 6.0;
 scene.add(pluto.pivot);
@@ -678,7 +667,7 @@ scene.add(orbitLinesFolder);
 function createOrbitLine(radius, inclinationDegrees = 0) {
   const points = [];
   const segments = 128;
-  
+
   // Safety check: ensure the tilt is a number, default to 0
   const tilt = parseFloat(inclinationDegrees) || 0;
   const inclinationRad = tilt * (Math.PI / 180);
@@ -689,7 +678,7 @@ function createOrbitLine(radius, inclinationDegrees = 0) {
 
     // The EXACT trigonometry your Planet.js engine is using!
     const x = Math.cos(theta) * radius;
-    const z = -Math.sin(theta) * radius; 
+    const z = -Math.sin(theta) * radius;
     const y = radius * Math.sin(theta) * Math.tan(inclinationRad);
 
     points.push(new THREE.Vector3(x, y, z));
@@ -699,9 +688,9 @@ function createOrbitLine(radius, inclinationDegrees = 0) {
 
   // Bumped opacity to 0.8 so they glow brightly against the starfield
   const material = new THREE.LineBasicMaterial({
-    color: 0x66bbff, 
+    color: 0x66bbff,
     transparent: true,
-    opacity: 0.8, 
+    opacity: 0.8,
   });
 
   const orbitLine = new THREE.Line(geometry, material);
@@ -709,15 +698,15 @@ function createOrbitLine(radius, inclinationDegrees = 0) {
 }
 
 // --- EXACT REAL-WORLD TILT CALLS ---
-createOrbitLine(800, 7.0);     // Mercury (Highly tilted)
-createOrbitLine(1400, 3.4);    // Venus
-createOrbitLine(2000, 0.0);    // Earth (Baseline)
-createOrbitLine(4000, 1.8);    // Mars
-createOrbitLine(10000, 1.3);   // Jupiter
-createOrbitLine(18000, 2.5);   // Saturn
-createOrbitLine(35000, 0.8);   // Uranus
-createOrbitLine(55000, 1.8);   // Neptune
-createOrbitLine(75000, 17.2);  // Pluto (Massive tilt!)
+createOrbitLine(800, 7.0); // Mercury (Highly tilted)
+createOrbitLine(1400, 3.4); // Venus
+createOrbitLine(2000, 0.0); // Earth (Baseline)
+createOrbitLine(4000, 1.8); // Mars
+createOrbitLine(10000, 1.3); // Jupiter
+createOrbitLine(18000, 2.5); // Saturn
+createOrbitLine(35000, 0.8); // Uranus
+createOrbitLine(55000, 1.8); // Neptune
+createOrbitLine(75000, 17.2); // Pluto (Massive tilt!)
 
 // --- THE ANIMATION LOOP ---
 function animate() {
@@ -1161,6 +1150,13 @@ function animate() {
       // 5. Broadcast the live video feed to the circle!
       opticsRenderer.render(scene, opticsCamera);
     }
+  }
+
+  // --- PHOBOS ORBIT PHYSICS ---
+  if (typeof phobosPivot !== "undefined") {
+    const phobosOrbitPeriod = 0.3;
+    phobosPivot.rotation.y =
+      (currentSimDays / phobosOrbitPeriod) * (Math.PI * 2);
   }
 
   renderer.render(scene, camera);

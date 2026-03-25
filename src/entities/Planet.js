@@ -39,7 +39,7 @@ const REAL_ROTATION_DAYS = {
   Saturn: 0.45,
   Uranus: -0.72, // Retrograde!
   Neptune: 0.67,
-  Pluto: -6.39, // Retrograde!
+  Pluto: 5.39, // Retrograde!
   Moon: 27.322,
 };
 
@@ -115,7 +115,7 @@ export class Planet {
     }
 
     // 2. Spin the planet mesh on its own axis (Day/Night)
-    if (this.rotationPeriod > 0) {
+    if (this.rotationPeriod !== 0) {
       const rotationAngle =
         (currentSimDays / this.rotationPeriod) * (Math.PI * 2);
 
