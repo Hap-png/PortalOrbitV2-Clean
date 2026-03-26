@@ -20,7 +20,7 @@ export class PlayerShip {
       "assets/models/transport.glb",
       (gltf) => {
         this.transportModel = gltf.scene;
-        
+
         // 1. Shrink and rotate
         this.transportModel.scale.set(0.05, 0.05, 0.05);
         this.transportModel.rotation.set(0, Math.PI, 0);
@@ -33,7 +33,7 @@ export class PlayerShip {
         this.mesh.add(this.transportModel);
       },
       undefined,
-      (error) => console.error("Error loading transport.glb:", error)
+      (error) => console.error("Error loading transport.glb:", error),
     );
 
     // --- SHIP 2: THE SPACE SHUTTLE ---
@@ -41,23 +41,23 @@ export class PlayerShip {
       "assets/models/shuttle.glb",
       (gltf) => {
         this.shuttleModel = gltf.scene;
-        
+
         // We might need to adjust this scale later!
-        this.shuttleModel.scale.set(0.1, 0.1, 0.1); 
-        this.shuttleModel.rotation.set(0, - Math.PI / 2, 0); // Spin to match transport
-        
+        this.shuttleModel.scale.set(0.1, 0.1, 0.1);
+        this.shuttleModel.rotation.set(0, -Math.PI / 2, 0); // Spin to match transport
+
         // Center the physics just like the transport
         const box = new THREE.Box3().setFromObject(this.shuttleModel);
         const center = box.getCenter(new THREE.Vector3());
         this.shuttleModel.position.sub(center);
 
         // THE MAGIC TRICK: Hide it immediately!
-        this.shuttleModel.visible = false; 
+        this.shuttleModel.visible = false;
 
         this.mesh.add(this.shuttleModel);
       },
       undefined,
-      (error) => console.error("Error loading shuttle.glb:", error)
+      (error) => console.error("Error loading shuttle.glb:", error),
     );
 
     // 3. Mount the Camera
@@ -95,7 +95,7 @@ export class PlayerShip {
     // 2. Raised from 0.92 to 0.98 so the ship smoothly drifts to a stop
     this.rotationalDrag = 0.98;
 
-        // 5. Keyboard Input Tracker
+    // 5. Keyboard Input Tracker
     this.keys = {};
     window.addEventListener(
       "keydown",
@@ -126,34 +126,30 @@ export class PlayerShip {
   }
 
   update(delta) {
-    // --- ROTATION (True Hovercraft with Gimbal Lock Prevention) ---
+    // --- ROTATION (True 6DOF Starfighter Flight) ---
     if (!this.isDocking) {
+      // 1. Pitch (Up/Down)
       if (this.keys["arrowup"])
         this.rotationVelocity.x += this.turnAcceleration * delta;
       if (this.keys["arrowdown"])
         this.rotationVelocity.x -= this.turnAcceleration * delta;
+        
+      // 2. Yaw (Left/Right)
       if (this.keys["arrowleft"])
         this.rotationVelocity.y += this.turnAcceleration * delta;
       if (this.keys["arrowright"])
         this.rotationVelocity.y -= this.turnAcceleration * delta;
 
-      // 1. Force the math to process Yaw (Left/Right) before Pitch (Up/Down)
-      this.mesh.rotation.order = "YXZ";
+      // 3. NEW: Roll (Bank Left/Right)
+      if (this.keys["q"])
+        this.rotationVelocity.z += this.turnAcceleration * delta;
+      if (this.keys["e"])
+        this.rotationVelocity.z -= this.turnAcceleration * delta;
 
-      // 2. Apply the turns directly to the ship's internal compass
-      this.mesh.rotation.y += this.rotationVelocity.y * delta;
-      this.mesh.rotation.x += this.rotationVelocity.x * delta;
-
-      // 3. THE ANTI-FLIP CLAMP: Stop the nose from pointing past 89 degrees up or down.
-      // (1.56 radians is just shy of 90 degrees). This completely eliminates Gimbal Lock!
-      const maxPitch = 1.56;
-      this.mesh.rotation.x = Math.max(
-        -maxPitch,
-        Math.min(maxPitch, this.mesh.rotation.x),
-      );
-
-      // 4. Safely lock the wings level to the solar system floor
-      this.mesh.rotation.z = 0;
+      // Apply the true local rotations to all 3 axes!
+      this.mesh.rotateY(this.rotationVelocity.y * delta);
+      this.mesh.rotateX(this.rotationVelocity.x * delta);
+      this.mesh.rotateZ(this.rotationVelocity.z * delta); // The new roll command!
 
       this.rotationVelocity.multiplyScalar(this.rotationalDrag);
     }

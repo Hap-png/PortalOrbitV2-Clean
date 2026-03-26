@@ -9,6 +9,8 @@ import { RingedPlanet } from "./entities/RingedPlanet.js";
 import { CustomStation } from "./entities/CustomStation.js";
 import { Comet } from "./entities/Comet.js";
 import { GLTFLoader } from "https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
+import { Juno } from "./entities/Juno.js";
+import { Cassini } from "./entities/Cassini.js";
 
 let backgroundMusic;
 
@@ -19,6 +21,11 @@ const scene = new THREE.Scene();
 let isMapMode = false;
 const savedCameraPos = new THREE.Vector3();
 const savedCameraRot = new THREE.Euler();
+
+// --- TOW CABLE SYSTEMS ---
+let isTowCableEngaged = false;
+let previousTargetPos = new THREE.Vector3();
+const TOW_CABLE_MAX_RANGE = 5.0; // Must be within 5km to fire the harpoon!
 
 // Changed the near clipping plane from 0.1 to 0.001!
 const camera = new THREE.PerspectiveCamera(
@@ -456,6 +463,10 @@ callisto.pivot.rotation.y = 4.0; // Give it a starting position so it isn't line
 jupiter.orbitGroup.add(callisto.pivot);
 planets.push(callisto);
 
+// --- JUNO PROBE ---
+const junoProbe = new Juno(scene, jupiter);
+planets.push(junoProbe); // This puts Juno in the ship's targeting/tether radar!
+
 // --- JUPITER SPACE STATION ---
 const jupiterStation = new CustomStation(
   "Jupiter Station", // Name on the HUD
@@ -511,7 +522,7 @@ const mimas = new Planet(
   "Mimas",
   0.5, // Much smaller than Titan
   "assets/textures/mimas.jpg",
-  62, // Closest of the three, just outside the rings
+  190, // <--- Pushed to 190 (Safely outside the 150 ring edge)
   0.15, // Fastest orbital speed
   0.02,
 );
@@ -526,7 +537,7 @@ const enceladus = new Planet(
   "Enceladus",
   0.6, // Slightly larger than Mimas
   "assets/textures/enceladus.jpg",
-  65, // Pushed out a bit further
+  240, // <--- Pushed to 240
   0.12, // Slightly slower than Mimas
   0.02,
 );
@@ -541,7 +552,7 @@ const tethys = new Planet(
   "Tethys",
   0.8, // Largest of these three, but still 1/3 the size of Titan
   "assets/textures/tethys.jpg",
-  85, // Furthest of the inner moons
+  310, // <--- Pushed to 310
   0.09, // Slowest of the three inner moons
   0.02,
 );
@@ -555,19 +566,26 @@ planets.push(tethys);
 const titan = new Planet(
   "Titan",
   3.2,
-  "assets/textures/saturn_titan.png", // <--- The correct file name and extension!
-  280,
+  "assets/textures/saturn_titan.png", 
+  800, // <--- Pushed way out to 800 for that deep space feel
   0.02,
   0.02,
 );
 titan.pivot.rotation.y = 0.8;
 saturn.orbitGroup.add(titan.pivot);
-titan.targetName = "Titan";
 
 // --- Make Titan "Latchable" ---
 titan.targetName = "Titan";
 titan.tetherDistance = 40; // A bit more room for the hazy giant
 planets.push(titan);
+
+// --- CASSINI PROBE ---
+let cassiniProbe;
+if (saturn) {
+  // Passing the array of moons as her target itinerary
+cassiniProbe = new Cassini(scene, saturn, [mimas, enceladus, tethys, titan]);
+  planets.push(cassiniProbe); // Adds her to the HUD/Tether radar
+}
 
 // --- 2. LIGHTING: PLANET SHINE ---
 //const planetShine = new THREE.PointLight(0xffe4b5, 1.2, 0);
@@ -719,6 +737,10 @@ function animate() {
   timeManager.update(rawDelta);
   const currentSimDays = timeManager.getDaysSinceJ2000();
 
+  // ---JUNO AND CASSINI UPDATE LINE ---
+  junoProbe.update(currentSimDays);
+  cassiniProbe.update(currentSimDays);
+
   // 4. UPDATE THE SHIP (Only once!)
   ship.update(delta);
 
@@ -841,7 +863,7 @@ function animate() {
 
       navContainer.appendChild(label);
       planet.uiLabel = label;
-      console.log("Created HUD label for:", planet.targetName);
+      //console.log("Created HUD label for:", planet.targetName);
     }
   });
 
@@ -1104,6 +1126,12 @@ function animate() {
       offset.applyQuaternion(deltaQuat);
       camera.position.copy(ship.mesh.position).add(offset);
 
+      // 1. Give the camera a neck brace so it rolls with the ship!
+      camera.up.copy(
+        new THREE.Vector3(0, 1, 0).applyQuaternion(ship.mesh.quaternion),
+      );
+
+      // 2. The original line that anchors OrbitControls to the ship
       controls.target.copy(ship.mesh.position);
 
       // Let the pilot use the mouse to look around the ship!
@@ -1244,8 +1272,6 @@ window.addEventListener("keydown", (e) => {
       console.log("TACTICAL MAP: DISENGAGED");
     }
   }
-
-  // ... Your other keys (like X or the Tractor Beam B) continue down here ...
 
   // 5. SHIP SYSTEM KEYS
   if (key === "x" && typeof ship.toggleShip === "function") ship.toggleShip();

@@ -15,3 +15,7 @@ Credit Line: Milky Way Panorama Background: ESO/S. Brunier.
 Solar System Planet Textures and Models courtesy of NASA / NASA 3D Resources
 
 "Phobos_1_1000" (https://skfb.ly/oHJCq) by harperanneviolet is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
+
+"Juno OBJ Transparent" (https://skfb.ly/6QZCV) by mbrennan is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
+
+"Cassini Huygens" (https://skfb.ly/6oPxs) by uperesito is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).

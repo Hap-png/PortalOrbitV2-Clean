@@ -46,20 +46,27 @@ export class TimeManager {
   update(delta) {
     if (this.isPaused) return;
 
+    // --- NEW: EASING CONTROLS ---
+    // Lower numbers = much longer, smoother transitions. 
+    const spoolUpSpeed = 0.01;   
+    const spoolDownSpeed = 0.02; 
+
     // 1. Momentary Warp Logic with Smooth Easing!
     if (this.keys["]"]) {
       // Standard Fast Forward
-      this.timeWarp += (this.fastForwardSpeed - this.timeWarp) * 0.05;
+      this.timeWarp += (this.fastForwardSpeed - this.timeWarp) * spoolUpSpeed;
     } else if (this.keys["/"]) {
-      // PLANET OBSERVATION SPEED (The / key)
-      // Runs at 20% of your current gear speed for a smooth, slow roll
-      this.timeWarp += ((this.fastForwardSpeed * 0.2) - this.timeWarp) * 0.05;
+      // PLANET OBSERVATION SPEED (20% of current gear)
+      this.timeWarp += ((this.fastForwardSpeed * 0.2) - this.timeWarp) * spoolUpSpeed;
+    } else if (this.keys["\\"]) {
+      // THE CREEPER GEAR (12.5% or 1/8th of current gear)
+      this.timeWarp += ((this.fastForwardSpeed * 0.125) - this.timeWarp) * spoolUpSpeed;
     } else if (this.keys["["]) {
       // Standard Rewind
-      this.timeWarp += (this.rewindSpeed - this.timeWarp) * 0.05;
+      this.timeWarp += (this.rewindSpeed - this.timeWarp) * spoolUpSpeed;
     } else {
       // Smoothly decelerate back to normal 1:1 time
-      this.timeWarp += (1 - this.timeWarp) * 0.1;
+      this.timeWarp += (1 - this.timeWarp) * spoolDownSpeed;
     }
 
     // 2. Step the clock forward
@@ -68,6 +75,7 @@ export class TimeManager {
     this.updateUI();
   }
 
+  // --- RESTORED FUNCTIONS ---
   getDaysSinceJ2000() {
     return (this.simTimeMs - this.J2000_UTC_MS) / this.MS_PER_DAY;
   }
