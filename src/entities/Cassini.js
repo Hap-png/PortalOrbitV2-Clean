@@ -38,7 +38,7 @@ export class Cassini {
       "assets/models/cassini_huygens.glb",
       (gltf) => {
         this.model = gltf.scene;
-        this.model.scale.set(0.005, 0.005, 0.005); // Same starting scale as Juno
+        this.model.scale.set(0.002, 0.002, 0.002); // Same starting scale as Juno
         this.aimWrapper.add(this.model);
       },
       undefined,
@@ -86,7 +86,7 @@ export class Cassini {
 
     // Slow spin for stability
     if (this.model) {
-      this.model.rotation.y += 0.01;
+      this.model.rotation.y += 0.001;
     }
   }
 }
