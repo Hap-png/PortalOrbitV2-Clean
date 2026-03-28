@@ -2,19 +2,13 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 export class CustomStation {
-  // Added startingAngle to the end of the parameters (default is 0)
-  constructor(
-    name,
-    modelPath,
-    parentPlanet,
-    scaleFactor,
-    orbitRadius,
-    orbitSpeed = 0.001,
-    spinSpeed = 0.005,
-    startingAngle = 0,
-  ) {
+  // We changed rotationSpeed back to spinSpeed right here:
+  constructor(name, modelPath, parentPlanet, scaleFactor, orbitRadius, orbitSpeed, spinSpeed, startingAngle = 0, tetherDistance = 150) {
     this.name = name;
+    
+    // The new automatic tags
     this.targetName = name;
+    this.tetherDistance = tetherDistance;
 
     this.orbitGroup = new THREE.Group();
     // Set the starting position here! (Math.PI is a half-circle)

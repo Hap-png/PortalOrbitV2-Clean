@@ -214,7 +214,7 @@ ship.mesh.position.set(100, 0, 0);
 camera.position.set(
   ship.mesh.position.x,
   ship.mesh.position.y + 0.2, // Pushed down to get level with the hull
-  ship.mesh.position.z + 0.5, // Pushed in close to the engines
+  ship.mesh.position.z + 0.8, // Pushed in close to the engines
 );
 
 controls.target.copy(ship.mesh.position);
@@ -251,7 +251,7 @@ const mercury = new Planet(
 mercury.pivot.rotation.y = 5.0; // Random starting angle
 scene.add(mercury.pivot);
 planets.push(mercury);
-mercury.targetName = "Mercury";
+//mercury.targetName = "Mercury";
 
 // --- CREATE VENUS ---
 const venus = new Planet(
@@ -265,7 +265,7 @@ const venus = new Planet(
 venus.pivot.rotation.y = 3.14;
 scene.add(venus.pivot);
 planets.push(venus);
-venus.targetName = "Venus";
+//venus.targetName = "Venus";
 
 // ==========================================
 // EARTH, MOON, HUBBLE, SPACE STATION
@@ -281,7 +281,7 @@ const earth = new Planet(
   1.0, // Added back the rotation speed you were missing
   1.7, // THE REAL 2026 ANGLE
 );
-earth.targetName = "Earth";
+//earth.targetName = "Earth";
 scene.add(earth.pivot);
 planets.push(earth);
 
@@ -296,8 +296,8 @@ const moon = new Planet(
   0, // The spin speed
   2.5, // The real 2026 angle
 );
-moon.targetName = "Moon";
-moon.tetherDistance = 15;
+//moon.targetName = "Moon";
+//moon.tetherDistance = 15;
 earth.orbitGroup.add(moon.pivot);
 planets.push(moon);
 
@@ -313,9 +313,9 @@ const hubble = new CustomStation(
   Math.PI, // Starting Angle
 );
 // Add the docking safety parameters
-hubble.targetName = "Hubble";
+//hubble.targetName = "Hubble";
 hubble.isPlanet = true;
-hubble.tetherDistance = 25;
+//hubble.tetherDistance = 150;
 // Push the REAL Hubble into the Nav Computer list!
 planets.push(hubble);
 console.log("Hubble is now a valid docking target!");
@@ -327,7 +327,7 @@ earthStation.pivot.updateMatrixWorld(true);
 // --- ACTIVATE STATION RADAR BEACON ---
 earthStation.targetName = "Space Station";
 earthStation.name = "Earth Station";
-earthStation.tetherDistance = 30; // <-- ADD THIS LINE! Forces you to get super close!
+earthStation.tetherDistance = 150; // <-- ADD THIS LINE! Forces you to get super close!
 // Create the HTML text element for the station
 const stationLabel = document.createElement("div");
 stationLabel.className = "planet-label";
@@ -349,7 +349,7 @@ const mars = new Planet(
   0.3,
   3.5,
 );
-mars.targetName = "Mars"; // Move this up
+//mars.targetName = "Mars"; // Move this up
 mars.pivot.rotation.y = 4.0;
 scene.add(mars.pivot);
 planets.push(mars); // Push it last so the label engine sees the name immediately
@@ -364,9 +364,9 @@ gltfLoader.load("assets/models/phobos.glb", (gltf) => {
   phobosMesh.position.x = 6.5;
   phobosPivot.add(phobosMesh);
   const phobosTarget = {
-    targetName: "Phobos", // The text that appears on the HUD
+    //targetName: "Phobos", // The text that appears on the HUD
     mesh: phobosMesh, // What the radar actually points at
-    tetherDistance: 100, // How close to get before turning Orange (Tether zone)
+    //tetherDistance: 150, // How close to get before turning Orange (Tether zone)
     orbitGroup: phobosPivot, // For tether tracking math
   };
   planets.push(phobosTarget);
@@ -400,17 +400,17 @@ const jupiter = new Planet(
 jupiter.pivot.rotation.y = 1.5;
 scene.add(jupiter.pivot);
 planets.push(jupiter);
-jupiter.targetName = "Jupiter";
+//jupiter.targetName = "Jupiter";
 
 // --- CREATE IO ---
 const io = new Planet("Io", 0.9, "assets/textures/io.jpg", 150, 0.15, 1.2);
 io.pivot.rotation.y = 4.5;
 jupiter.orbitGroup.add(io.pivot);
 planets.push(io);
-io.targetName = "Io";
+//io.targetName = "Io";
 // --- Make Io "Latchable" ---
-io.targetName = "Io";
-io.tetherDistance = 15; // Nice and close for the volcanic moon
+//io.targetName = "Io";
+//io.tetherDistance = 150; // Nice and close for the volcanic moon
 planets.push(io);
 
 // ---CREATE EUROPA ---
@@ -427,10 +427,10 @@ europa.mesh.material.needsUpdate = true;
 europa.pivot.rotation.y = 1.2;
 jupiter.orbitGroup.add(europa.pivot);
 planets.push(europa);
-europa.targetName = "Europa";
+//europa.targetName = "Europa";
 // --- Make Europa "Latchable" ---
-europa.targetName = "Europa";
-europa.tetherDistance = 15; // Perfect for ice-crust inspections
+//europa.targetName = "Europa";
+//europa.tetherDistance = 150; // Perfect for ice-crust inspections
 planets.push(europa);
 
 // ---CREATE GANYMEDE ---
@@ -444,8 +444,8 @@ const ganymede = new Planet(
 );
 ganymede.pivot.rotation.y = 2.8;
 jupiter.orbitGroup.add(ganymede.pivot);
-ganymede.targetName = "Ganymede";
-ganymede.tetherDistance = 25;
+//ganymede.targetName = "Ganymede";
+//ganymede.tetherDistance = 150;
 planets.push(ganymede);
 
 // --- CREATE CALLISTO ---
@@ -457,8 +457,8 @@ const callisto = new Planet(
   0.02,
   0.5,
 );
-callisto.targetName = "Callisto";
-callisto.tetherDistance = 20;
+//callisto.targetName = "Callisto";
+//callisto.tetherDistance = 150;
 callisto.pivot.rotation.y = 4.0; // Give it a starting position so it isn't lined up with others
 jupiter.orbitGroup.add(callisto.pivot);
 planets.push(callisto);
@@ -512,8 +512,8 @@ if (saturn.mesh) {
   saturn.mesh.material.color.setHex(0xffffff);
 }
 saturn.pivot.rotation.y = 0.5;
-saturn.targetName = "Saturn";
-saturn.tetherDistance = 400;
+//saturn.targetName = "Saturn";
+//saturn.tetherDistance = 400;
 scene.add(saturn.pivot);
 planets.push(saturn);
 
@@ -528,8 +528,8 @@ const mimas = new Planet(
 );
 mimas.pivot.rotation.y = 1.2; // Staggers the starting position
 saturn.orbitGroup.add(mimas.pivot);
-mimas.targetName = "Mimas";
-mimas.tetherDistance = 15; // Tighter tether for a tiny moon
+//mimas.targetName = "Mimas";
+//mimas.tetherDistance = 15; // Tighter tether for a tiny moon
 planets.push(mimas);
 
 // --- CREATE ENCELADUS ---
@@ -543,8 +543,8 @@ const enceladus = new Planet(
 );
 enceladus.pivot.rotation.y = 3.5;
 saturn.orbitGroup.add(enceladus.pivot);
-enceladus.targetName = "Enceladus";
-enceladus.tetherDistance = 16;
+//enceladus.targetName = "Enceladus";
+//enceladus.tetherDistance = 150;
 planets.push(enceladus);
 
 // --- CREATE TETHYS ---
@@ -558,15 +558,15 @@ const tethys = new Planet(
 );
 tethys.pivot.rotation.y = 5.1;
 saturn.orbitGroup.add(tethys.pivot);
-tethys.targetName = "Tethys";
-tethys.tetherDistance = 20;
+//tethys.targetName = "Tethys";
+//tethys.tetherDistance = 150;
 planets.push(tethys);
 
 // --- CREATE TITAN ---
 const titan = new Planet(
   "Titan",
   3.2,
-  "assets/textures/saturn_titan.png", 
+  "assets/textures/saturn_titan.png",
   800, // <--- Pushed way out to 800 for that deep space feel
   0.02,
   0.02,
@@ -575,15 +575,15 @@ titan.pivot.rotation.y = 0.8;
 saturn.orbitGroup.add(titan.pivot);
 
 // --- Make Titan "Latchable" ---
-titan.targetName = "Titan";
-titan.tetherDistance = 40; // A bit more room for the hazy giant
+//titan.targetName = "Titan";
+//titan.tetherDistance = 150; // A bit more room for the hazy giant
 planets.push(titan);
 
 // --- CASSINI PROBE ---
 let cassiniProbe;
 if (saturn) {
   // Passing the array of moons as her target itinerary
-cassiniProbe = new Cassini(scene, saturn, [mimas, enceladus, tethys, titan]);
+  cassiniProbe = new Cassini(scene, saturn, [mimas, enceladus, tethys, titan]);
   planets.push(cassiniProbe); // Adds her to the HUD/Tether radar
 }
 
@@ -622,7 +622,7 @@ planets.push(saturnBase);
 // --- CREATE URANUS ---
 const uranus = new Planet(
   "Uranus",
-  20,
+  20, //size
   "assets/textures/uranus.jpg",
   35000,
   0.02,
@@ -631,7 +631,7 @@ const uranus = new Planet(
 uranus.pivot.rotation.y = 4.2;
 scene.add(uranus.pivot);
 planets.push(uranus);
-uranus.targetName = "Uranus";
+//uranus.targetName = "Uranus";
 
 // --- CREATE NEPTUNE ---
 const neptune = new Planet(
@@ -645,7 +645,7 @@ const neptune = new Planet(
 neptune.pivot.rotation.y = 2.8;
 scene.add(neptune.pivot);
 planets.push(neptune);
-neptune.targetName = "Neptune";
+//neptune.targetName = "Neptune";
 
 // --- CREATE PLUTO ---
 const pluto = new Planet(
@@ -659,7 +659,7 @@ const pluto = new Planet(
 pluto.pivot.rotation.y = 6.0;
 scene.add(pluto.pivot);
 planets.push(pluto);
-pluto.targetName = "Pluto";
+//pluto.targetName = "Pluto";
 
 timeManager.updateUI();
 
@@ -874,7 +874,7 @@ function animate() {
 
   // STEP 1: Find the ONE object closest to the dead-center of the crosshairs
   let bestTarget = null;
-  let smallestAngle = 0.3; // This is your original aim cone size
+  let smallestAngle = 0.05; // Dropped from 0.3 to make it a sniper scope
 
   planets.forEach((planet) => {
     // 1. Get Coordinates
@@ -910,10 +910,14 @@ function animate() {
     planet.savedWorldPos = planetWorldPos;
     planet.savedDistance = distance;
 
-    // 3. THE TIE-BREAKER: Is it closer to the center than the last one we checked?
-    if (angle < smallestAngle) {
-      smallestAngle = angle; // Shrink the cone to beat!
-      bestTarget = planet; // Crown the new winner
+    // 3. THE HARD LOCK & THE TIE-BREAKER
+    if (ship.keys["w"] && ship.autoTarget === planet && !ship.arrivalComplete) {
+      // HARD LOCK: If we are warping to it, ignore the angle and hold on tight!
+      bestTarget = planet;
+    } else if (!ship.keys["w"] && angle < smallestAngle) {
+      // STANDARD RADAR: If we aren't warping, just look for the closest thing
+      smallestAngle = angle;
+      bestTarget = planet;
     }
   });
 
@@ -958,6 +962,7 @@ function animate() {
         planet.uiLabel.style.fontSize = "32px";
         planet.uiLabel.style.zIndex = "10";
         ship.hasWarpLock = true; // Engage warp drive!
+        ship.autoTarget = planet;
       } else {
         // 2. ORANGE HUD (Tether Zone!)
         planet.uiLabel.style.color = "#ffaa00";
@@ -965,6 +970,7 @@ function animate() {
         planet.uiLabel.style.fontSize = "32px";
         planet.uiLabel.style.zIndex = "10";
         ship.hasWarpLock = true; // Engage warp drive!
+        ship.autoTarget = planet; // <--- ADD THIS LINE
 
         // Anchor the tether
         if (ship.tetherTarget !== planet && !ship.isDocking) {

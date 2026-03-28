@@ -128,19 +128,67 @@ export class PlayerShip {
   update(delta) {
     // --- ROTATION (True 6DOF Starfighter Flight) ---
     if (!this.isDocking) {
-      // 1. Pitch (Up/Down)
+      // 0. Check for Manual Override
+      const manualSteering =
+        this.keys["arrowup"] ||
+        this.keys["arrowdown"] ||
+        this.keys["arrowleft"] ||
+        this.keys["arrowright"] ||
+        this.keys["q"] ||
+        this.keys["e"];
+
+      // 0.5 AUTOPILOT SOFT-LOCK
+      // We require 'W' so it only auto-steers when you actually commit to the warp jump!
+      if (
+        this.keys["w"] &&
+        this.hasWarpLock &&
+        this.autoTarget &&
+        !manualSteering &&
+        !this.arrivalComplete
+      ) {
+        // Find exactly where the target is in the world
+        const targetPos = new THREE.Vector3();
+        const tracker =
+          this.autoTarget.mesh ||
+          this.autoTarget.group ||
+          this.autoTarget.model ||
+          this.autoTarget.orbitGroup ||
+          this.autoTarget.pivot ||
+          this.autoTarget;
+        if (tracker && tracker.getWorldPosition) {
+          tracker.getWorldPosition(targetPos);
+        } else {
+          targetPos.copy(this.autoTarget.position);
+        }
+
+        // Convert that world position into "local" space relative to the nose of the ship
+        const localTargetPos = this.mesh.worldToLocal(targetPos.clone());
+
+        // Calculate how far off-center the target is (Pitch and Yaw)
+        const yawError = Math.atan2(localTargetPos.x, -localTargetPos.z);
+        const pitchError = Math.atan2(localTargetPos.y, -localTargetPos.z);
+
+        // Apply a gentle force to correct the error (The 2.0 is the steering strength)
+        this.rotationVelocity.y -= yawError * 2.0 * delta;
+        this.rotationVelocity.x += pitchError * 2.0 * delta;
+
+        // Optional: Auto-level the roll (Z-axis) so you don't fly in sideways
+        this.rotationVelocity.z -= this.rotationVelocity.z * 1.5 * delta;
+      }
+
+      // 1. Pitch (Up/Down) - Manual Steering
       if (this.keys["arrowup"])
         this.rotationVelocity.x += this.turnAcceleration * delta;
       if (this.keys["arrowdown"])
         this.rotationVelocity.x -= this.turnAcceleration * delta;
-        
-      // 2. Yaw (Left/Right)
+
+      // 2. Yaw (Left/Right) - Manual Steering
       if (this.keys["arrowleft"])
         this.rotationVelocity.y += this.turnAcceleration * delta;
       if (this.keys["arrowright"])
         this.rotationVelocity.y -= this.turnAcceleration * delta;
 
-      // 3. NEW: Roll (Bank Left/Right)
+      // 3. Roll (Bank Left/Right) - Manual Steering
       if (this.keys["q"])
         this.rotationVelocity.z += this.turnAcceleration * delta;
       if (this.keys["e"])
@@ -149,7 +197,7 @@ export class PlayerShip {
       // Apply the true local rotations to all 3 axes!
       this.mesh.rotateY(this.rotationVelocity.y * delta);
       this.mesh.rotateX(this.rotationVelocity.x * delta);
-      this.mesh.rotateZ(this.rotationVelocity.z * delta); // The new roll command!
+      this.mesh.rotateZ(this.rotationVelocity.z * delta);
 
       this.rotationVelocity.multiplyScalar(this.rotationalDrag);
     }
@@ -168,24 +216,83 @@ export class PlayerShip {
     const thrust = new THREE.Vector3(0, 0, 0);
 
     if (this.keys["w"]) {
-      if (this.hasWarpLock) {
-        // CONDITION C: Target Locked & Safe Distance! Spool up.
-        this.warpVelocity += this.warpAcceleration * delta;
-        if (this.warpVelocity > this.maxWarpSpeed)
-          this.warpVelocity = this.maxWarpSpeed;
-        thrust.z = -this.warpVelocity * delta;
+      if (this.hasWarpLock && this.autoTarget) {
+        // 1. Find our exact distance
+        const targetPos = new THREE.Vector3();
+        const tracker =
+          this.autoTarget.mesh ||
+          this.autoTarget.group ||
+          this.autoTarget.model ||
+          this.autoTarget.orbitGroup ||
+          this.autoTarget.mesh ||
+          this.autoTarget.pivot ||
+          this.autoTarget;
+        if (tracker && tracker.getWorldPosition) {
+          tracker.getWorldPosition(targetPos);
+        } else {
+          targetPos.copy(this.autoTarget.position);
+        }
+        const distanceToTarget = this.mesh.position.distanceTo(targetPos);
+
+        // 2. FIXED Arrival Zones (Back to the high-speed approach!)
+        const parkingDistance = 150;
+        const brakeZone = 4000;
+        const tetherZone = this.autoTarget.tetherDistance || 300;
+
+        // 3. SMART THROTTLE & REAL BRAKES
+        if (distanceToTarget <= parkingDistance) {
+          // CONDITION C-1: HARD STOP AT THE DOORSTEP
+          const currentSpeed = this.velocity.length() * 1000;
+
+          if (!this.arrivalComplete) {
+            // Slam the brakes until we are completely stopped
+            this.warpVelocity = 0;
+            thrust.z = 0;
+            this.velocity.multiplyScalar(0.85);
+
+            // Once stopped, check if we are in the Orange Zone to release!
+            if (currentSpeed < 1.0 && distanceToTarget <= tetherZone) {
+              this.arrivalComplete = true; // Brakes off! Steering off!
+            }
+          } else {
+            // We are parked and inside the tether zone!
+            // 'W' now functions as a standard, manual sub-light engine.
+            this.warpVelocity = 0;
+            thrust.z = -this.thrustPower * delta;
+          }
+        } else if (distanceToTarget < brakeZone) {
+          // CONDITION C-2: BRAKING ZONE
+          this.arrivalComplete = false; // Reset ticket if we leave the zone
+
+          const speedRatio =
+            (distanceToTarget - parkingDistance) /
+            (brakeZone - parkingDistance);
+          const dynamicMaxSpeed = this.maxWarpSpeed * speedRatio;
+
+          if (this.warpVelocity > dynamicMaxSpeed) {
+            this.warpVelocity *= 0.9;
+            this.velocity.multiplyScalar(0.96);
+          } else {
+            this.warpVelocity += this.warpAcceleration * delta;
+          }
+          thrust.z = -this.warpVelocity * delta;
+        } else {
+          // CONDITION C-3: OPEN SPACE! Full speed ahead.
+          this.arrivalComplete = false; // Reset ticket
+
+          this.warpVelocity += this.warpAcceleration * delta;
+          if (this.warpVelocity > this.maxWarpSpeed) {
+            this.warpVelocity = this.maxWarpSpeed;
+          }
+          thrust.z = -this.warpVelocity * delta;
+        }
       } else {
-        // CONDITION D: AUTOPILOT GLIDE!
-        // 'W' is held, but we crossed the 3000km threshold. Let it coast!
+        // CONDITION D: AUTOPILOT GLIDE! (Target lost or manually gliding)
         if (this.warpVelocity > 0.1) {
-          this.warpVelocity *= 0.95; // Gentle glide instead of slamming brakes
-
-          // Notice we completely REMOVED the this.velocity.multiplyScalar(0.20) line!
-
+          this.warpVelocity *= 0.95;
           thrust.z = -this.warpVelocity * delta;
         } else {
           this.warpVelocity = 0;
-          // Seamlessly transition back to impulse engines
           thrust.z = -this.thrustPower * delta;
         }
       }

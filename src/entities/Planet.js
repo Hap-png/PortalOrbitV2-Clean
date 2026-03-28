@@ -13,21 +13,35 @@ const REAL_ORBIT_DAYS = {
   Pluto: 90560.0,
   Moon: 27.322,
   Titan: 15.945,
-  Io: 1.769, 
-  Europa: 3.551, 
-  Ganymede: 7.155, 
+  Io: 1.769,
+  Europa: 3.551,
+  Ganymede: 7.155,
   Callisto: 16.689,
   // --- THE NEW SATURN MOONS ---
-  Mimas: 0.942,      // Zips around in under a day!
-  Enceladus: 1.370,  // Just over a day
-  Tethys: 1.888      // Almost two days
+  Mimas: 0.942, // Zips around in under a day!
+  Enceladus: 1.37, // Just over a day
+  Tethys: 1.888, // Almost two days
 };
 
 const REAL_INCLINATION_DEGREES = {
-  Mercury: 7.0, Venus: 3.4, Earth: 0.0, Mars: 1.8, Jupiter: 1.3,
-  Saturn: 2.5, Uranus: 0.8, Neptune: 1.8, Pluto: 17.2,
-  Moon: 5.1, Io: 0.04, Europa: 0.47, Ganymede: 0.2, Callisto: 0.2,
-  Mimas: 1.5, Enceladus: 0.0, Tethys: 1.1, Titan: 0.3
+  Mercury: 7.0,
+  Venus: 3.4,
+  Earth: 0.0,
+  Mars: 1.8,
+  Jupiter: 1.3,
+  Saturn: 2.5,
+  Uranus: 0.8,
+  Neptune: 1.8,
+  Pluto: 17.2,
+  Moon: 5.1,
+  Io: 0.04,
+  Europa: 0.47,
+  Ganymede: 0.2,
+  Callisto: 0.2,
+  Mimas: 1.5,
+  Enceladus: 0.0,
+  Tethys: 1.1,
+  Titan: 0.3,
 };
 
 const REAL_ROTATION_DAYS = {
@@ -51,13 +65,19 @@ export class Planet {
     orbitRadius,
     fallbackOrbitSpeed,
     fallbackRotationSpeed,
-    startingAngle = 0, // <--- 1. Add this!
+    startingAngle = 0,
+    tetherDistance = 150, // <--- 1. Add your 150km minimum floor here!
   ) {
     this.name = name;
     this.startingAngle = startingAngle;
-    
-    // --- NEW: Grab the tilt and convert to radians ---
-    this.inclinationRad = (REAL_INCLINATION_DEGREES[name] || 0) * (Math.PI / 180);
+
+    // --- NEW: Bake the Target and Tether directly into the planet ---
+    this.targetName = name;
+    this.tetherDistance = tetherDistance;
+
+    // --- Grab the tilt and convert to radians ---
+    this.inclinationRad =
+      (REAL_INCLINATION_DEGREES[name] || 0) * (Math.PI / 180);
 
     this.orbitPeriod = REAL_ORBIT_DAYS[name] || 365 / fallbackOrbitSpeed;
     this.rotationPeriod = REAL_ROTATION_DAYS[name] || 1 / fallbackRotationSpeed;
@@ -65,7 +85,7 @@ export class Planet {
     // 1. The Pivot: This sits at the center of the orbit
     this.pivot = new THREE.Group();
 
-    // 2. NEW: The Orbit Group! This translates through space but does NOT spin.
+    // 2. The Orbit Group! This translates through space but does NOT spin.
     // We will attach the ship and moon to this so they aren't dragged by the day/night cycle.
     this.orbitGroup = new THREE.Group();
     this.orbitGroup.position.x = orbitRadius;
@@ -110,8 +130,10 @@ export class Planet {
 
       // 2. THE RESTORATION: Physically bob the planet up and down along the Y-axis!
       // This uses the orbit radius (position.x) and the current angle to calculate true height.
-      this.orbitGroup.position.y = 
-        this.orbitGroup.position.x * Math.sin(this.pivot.rotation.y) * Math.tan(this.inclinationRad);
+      this.orbitGroup.position.y =
+        this.orbitGroup.position.x *
+        Math.sin(this.pivot.rotation.y) *
+        Math.tan(this.inclinationRad);
     }
 
     // 2. Spin the planet mesh on its own axis (Day/Night)
@@ -136,7 +158,19 @@ export class Planet {
         const calibrationOffset = 0.0;
 
         this.mesh.rotation.y = solarRotation + calibrationOffset;
-      } else if (["Moon", "Titan", "Mimas", "Enceladus", "Tethys", "Io", "Europa", "Ganymede", "Callisto"].includes(this.name)) {
+      } else if (
+        [
+          "Moon",
+          "Titan",
+          "Mimas",
+          "Enceladus",
+          "Tethys",
+          "Io",
+          "Europa",
+          "Ganymede",
+          "Callisto",
+        ].includes(this.name)
+      ) {
         // Perfect Tidal Lock: The pivot arm already handles the orbit rotation natively!
         // We just need a static offset number to aim the correct texture face at the planet.
         // Try Math.PI, or if it's off by 90 degrees, try Math.PI / 2 or -Math.PI / 2
