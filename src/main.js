@@ -742,7 +742,7 @@ function animate() {
   cassiniProbe.update(currentSimDays);
 
   // 4. UPDATE THE SHIP (Only once!)
-  ship.update(delta);
+  ship.update(delta, planets);
 
   // 3. THE MASTER ENGINE: Move the universe forward in time!
   planets.forEach((p) => {

@@ -3,6 +3,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"; // <-- NEW IMPO
 
 export class PlayerShip {
   constructor(camera, domElement, scene) {
+    this.lockedOrbitTarget = null;
     // 1. Build the Ship's Core (An invisible wrapper)
     this.mesh = new THREE.Group();
     this.mesh.position.set(0, 5, 35);
@@ -77,6 +78,10 @@ export class PlayerShip {
 
     // 4. Custom Physics Engine Parameters
     this.velocity = new THREE.Vector3(0, 0, 0);
+    // Cinematic Orbit Variables
+    this.isOrbiting = false;
+    this.orbitAngle = 0;
+    this.orbitSpeed = 0.002;
     this.rotationVelocity = new THREE.Vector3(0, 0, 0);
 
     // --- WARP DRIVE SPECS ---
@@ -125,9 +130,102 @@ export class PlayerShip {
     }
   }
 
-  update(delta) {
+  update(delta, planets = []) {
+    // ==========================================
+    // V3 CINEMATIC ORBIT MODULE (THE CLUTCH)
+    // ==========================================
+    if (this.isOrbiting && this.lockedOrbitTarget) {
+      // 1. THE ESCAPE HATCH: Press 'W' to break orbit
+      if (this.keys["w"]) {
+        this.isOrbiting = false;
+        this.lockedOrbitTarget = null;
+        this.velocity.set(0, 0, 0);
+        this.mesh.up.set(0, 1, 0);
+        return;
+      }
+
+      // 2. THE GPS SYNC
+      const targetPos = new THREE.Vector3();
+      const tracker =
+        this.lockedOrbitTarget.orbitGroup ||
+        this.lockedOrbitTarget.pivot ||
+        this.lockedOrbitTarget;
+
+      if (tracker) {
+        if (typeof tracker.updateMatrixWorld === "function")
+          tracker.updateMatrixWorld(true);
+        if (typeof tracker.getWorldPosition === "function") {
+          tracker.getWorldPosition(targetPos);
+        } else if (tracker.position) {
+          targetPos.copy(tracker.position);
+        }
+      }
+
+      // 3. SUN-DIVE PROTECTOR: If the planet is missing, don't move.
+      if (targetPos.length() < 10) return;
+
+      // 4. MOVE ON THE RAIL
+      this.orbitAngle += this.orbitSpeed || 0.002;
+      const safeDist = this.orbitDistance || 150;
+
+      this.mesh.position.x = targetPos.x + Math.cos(this.orbitAngle) * safeDist;
+      this.mesh.position.z = targetPos.z + Math.sin(this.orbitAngle) * safeDist;
+      this.mesh.position.y = targetPos.y;
+
+      // 5. LOCK EYES ON THE TARGET
+      // Force the ship to stay level while looking at the moon
+      // Instead of looking at the moon, look at the exact opposite spot
+      const awayPoint = new THREE.Vector3()
+        .copy(this.mesh.position)
+        .add(new THREE.Vector3().subVectors(this.mesh.position, targetPos));
+      this.mesh.lookAt(awayPoint);
+      this.mesh.up.set(0, 1, 0);
+      //if (this.position) this.position.copy(this.mesh.position);
+
+      // THE CLUTCH: Stop regular flight logic while orbiting
+      return;
+    }
+    // --- THE V-KEY IGNITION SWITCH (Dynamic Distance Version) ---
+    if (this.keys["v"] || this.keys["V"]) {
+      if (this.autoTarget && !this.isOrbiting) {
+        // 1. Lock the planet so it doesn't change mid-flight
+        this.lockedOrbitTarget = this.autoTarget;
+        console.log("LOCKING ORBIT AT: " + this.lockedOrbitTarget.name);
+
+        const targetPos = new THREE.Vector3();
+        const tracker =
+          this.lockedOrbitTarget.orbitGroup ||
+          this.lockedOrbitTarget.pivot ||
+          this.lockedOrbitTarget;
+
+        if (tracker && typeof tracker.getWorldPosition === "function") {
+          tracker.updateMatrixWorld(true);
+          tracker.getWorldPosition(targetPos);
+        }
+
+        // 2. SAVE THE DISTANCE: This stops the "snapping" to 150km
+        this.orbitDistance = this.mesh.position.distanceTo(targetPos);
+        console.log(
+          "Orbit Radius Set To: " + this.orbitDistance.toFixed(2) + " km",
+        );
+
+        // 3. Set the starting angle
+        const dx = this.mesh.position.x - targetPos.x;
+        const dz = this.mesh.position.z - targetPos.z;
+        this.orbitAngle = Math.atan2(dz, dx);
+
+        this.isOrbiting = true;
+      } else if (this.isOrbiting) {
+        console.log("Breaking Orbit.");
+        this.isOrbiting = false;
+        this.lockedOrbitTarget = null;
+      }
+
+      this.keys["v"] = false;
+      this.keys["V"] = false;
+    }
     // --- ROTATION (True 6DOF Starfighter Flight) ---
-    if (!this.isDocking) {
+    if (!this.isDocking && !this.isOrbiting) {
       // 0. Check for Manual Override
       const manualSteering =
         this.keys["arrowup"] ||
