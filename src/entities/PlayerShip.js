@@ -166,10 +166,18 @@ export class PlayerShip {
 
       // 4. MOVE ON THE RAIL
       this.orbitAngle += this.orbitSpeed || 0.002;
-      const safeDist = this.orbitDistance || 150;
+      const safeDist = this.orbitDistance;
 
-      this.mesh.position.x = targetPos.x + Math.cos(this.orbitAngle) * safeDist;
-      this.mesh.position.z = targetPos.z + Math.sin(this.orbitAngle) * safeDist;
+      // 1. Calculate the 'Perfect' destination on the circle
+      const finalX = targetPos.x + Math.cos(this.orbitAngle) * safeDist;
+      const finalZ = targetPos.z + Math.sin(this.orbitAngle) * safeDist;
+
+      // 2. The LERP (Smooth Slide): Move 10% of the distance every frame
+      // This turns the 'Jump' into a 'Glide'
+      this.mesh.position.x += (finalX - this.mesh.position.x) * 0.1;
+      this.mesh.position.z += (finalZ - this.mesh.position.z) * 0.1;
+      
+      // Keep the Y locked to the planet's center for stability
       this.mesh.position.y = targetPos.y;
 
       // 5. LOCK EYES ON THE TARGET
@@ -337,14 +345,18 @@ export class PlayerShip {
         const brakeZone = 4000;
         const tetherZone = this.autoTarget.tetherDistance || 300;
 
-        // 3. SMART THROTTLE & REAL BRAKES
+        // 3. SMART THROTTLE & REAL BRAKES        
+        // CONDITION C-1: HARD STOP AT THE DOORSTEP
         if (distanceToTarget <= parkingDistance) {
-          // CONDITION C-1: HARD STOP AT THE DOORSTEP
           const currentSpeed = this.velocity.length() * 1000;
-
-          if (!this.arrivalComplete) {
-            // Slam the brakes until we are completely stopped
-            this.warpVelocity = 0;
+          if (!this.arrivalComplete) {            
+            // Try this: Smoothly drain the remaining speed
+            this.velocity.multiplyScalar(0.8);
+            if (this.velocity.length() < 0.01) {
+              this.velocity.set(0, 0, 0);
+              this.autoPilotActive = false;
+            }
+            this.warpVelocity = 0; // Full engine kill
             thrust.z = 0;
             this.velocity.multiplyScalar(0.85);
 
@@ -359,20 +371,30 @@ export class PlayerShip {
             thrust.z = -this.thrustPower * delta;
           }
         } else if (distanceToTarget < brakeZone) {
-          // CONDITION C-2: BRAKING ZONE
-          this.arrivalComplete = false; // Reset ticket if we leave the zone
+          // CONDITION C-2: DYNAMIC WARP CEILING
+          this.arrivalComplete = false;
 
-          const speedRatio =
-            (distanceToTarget - parkingDistance) /
-            (brakeZone - parkingDistance);
-          const dynamicMaxSpeed = this.maxWarpSpeed * speedRatio;
+          // 1. Calculate how much 'runway' we have left
+          const runway = distanceToTarget - parkingDistance;
 
-          if (this.warpVelocity > dynamicMaxSpeed) {
-            this.warpVelocity *= 0.9;
-            this.velocity.multiplyScalar(0.96);
+          // 2. The Warp Ceiling: As runway shrinks, the allowed speed drops fast.
+          // We use a square root to create a natural physics deceleration curve.
+          const warpCeiling = Math.sqrt(runway * 0.05) * this.maxWarpSpeed;
+
+          // 3. Apply the Governor
+          if (this.warpVelocity > warpCeiling) {
+            // Slam the internal warp engine
+            this.warpVelocity *= 0.8;
+            // Friction/Drag on the physical momentum
+            this.velocity.multiplyScalar(0.9);
           } else {
+            // If we are under the ceiling, we can still accelerate slightly
             this.warpVelocity += this.warpAcceleration * delta;
           }
+
+          // Ensure we never stay stuck at exactly the ceiling
+          if (this.warpVelocity > warpCeiling) this.warpVelocity = warpCeiling;
+
           thrust.z = -this.warpVelocity * delta;
         } else {
           // CONDITION C-3: OPEN SPACE! Full speed ahead.
