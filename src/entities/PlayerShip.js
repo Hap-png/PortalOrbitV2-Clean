@@ -130,7 +130,7 @@ export class PlayerShip {
     }
   }
 
-  update(delta, planets = []) {
+ update(delta, planets = []) {
     // ==========================================
     // V3 CINEMATIC ORBIT MODULE (THE CLUTCH)
     // ==========================================
@@ -145,50 +145,67 @@ export class PlayerShip {
       }
 
       // 2. THE GPS SYNC
-      const targetPos = new THREE.Vector3();
+      const targetPos = new THREE.Vector3(); 
+
+      // We need to grab the ACTUAL offset model, not the center pivot
       const tracker =
+        this.lockedOrbitTarget.mesh ||         // <--- Added this (most common)
+        this.lockedOrbitTarget.visualNode || 
         this.lockedOrbitTarget.orbitGroup ||
         this.lockedOrbitTarget.pivot ||
         this.lockedOrbitTarget;
 
       if (tracker) {
-        if (typeof tracker.updateMatrixWorld === "function")
+        if (typeof tracker.updateMatrixWorld === "function") {
           tracker.updateMatrixWorld(true);
+        }
+        
         if (typeof tracker.getWorldPosition === "function") {
           tracker.getWorldPosition(targetPos);
         } else if (tracker.position) {
           targetPos.copy(tracker.position);
         }
-      }
+      }  
+      
+      // ... rest of orbital physics logic ...
 
       // 3. SUN-DIVE PROTECTOR: If the planet is missing, don't move.
       if (targetPos.length() < 10) return;
 
       // 4. MOVE ON THE RAIL
       this.orbitAngle += this.orbitSpeed || 0.002;
-      const safeDist = this.orbitDistance;
+      
+      // Use the planet/moon distance if it exists. If it's missing (probes), force a tight 3-unit orbit.
+      const safeDist = (typeof this.orbitDistance === 'number' && !isNaN(this.orbitDistance) && this.orbitDistance > 0) 
+        ? this.orbitDistance 
+        : 2; // <--- This is your new Hubble/Juno distance. Change to 2 if you want to scrape the paint. 
 
       // 1. Calculate the 'Perfect' destination on the circle
       const finalX = targetPos.x + Math.cos(this.orbitAngle) * safeDist;
       const finalZ = targetPos.z + Math.sin(this.orbitAngle) * safeDist;
 
       // 2. The LERP (Smooth Slide): Move 10% of the distance every frame
-      // This turns the 'Jump' into a 'Glide'
       this.mesh.position.x += (finalX - this.mesh.position.x) * 0.1;
       this.mesh.position.z += (finalZ - this.mesh.position.z) * 0.1;
       
-      // Keep the Y locked to the planet's center for stability
-      this.mesh.position.y = targetPos.y;
+      // FIX 1: LERP the Y-axis instead of teleporting instantly
+      this.mesh.position.y += (targetPos.y - this.mesh.position.y) * 0.1;
 
       // 5. LOCK EYES ON THE TARGET
-      // Force the ship to stay level while looking at the moon
-      // Instead of looking at the moon, look at the exact opposite spot
       const awayPoint = new THREE.Vector3()
         .copy(this.mesh.position)
         .add(new THREE.Vector3().subVectors(this.mesh.position, targetPos));
-      this.mesh.lookAt(awayPoint);
+      
+      // FIX 2: Smooth Camera Rotation (Slerp)
+      const currentRotation = this.mesh.quaternion.clone(); // 1. Save where we are currently looking
+      
+      this.mesh.lookAt(awayPoint);                          // 2. Instantly snap to the perfect target angle
+      const targetRotation = this.mesh.quaternion.clone();  // 3. Save that perfect angle as the goal
+      
+      this.mesh.quaternion.copy(currentRotation);           // 4. Revert back to our current view
+      this.mesh.quaternion.slerp(targetRotation, 0.08);     // 5. Smoothly pan the camera 8% towards the goal every frame
+      
       this.mesh.up.set(0, 1, 0);
-      //if (this.position) this.position.copy(this.mesh.position);
 
       // THE CLUTCH: Stop regular flight logic while orbiting
       return;
@@ -201,23 +218,33 @@ export class PlayerShip {
         console.log("LOCKING ORBIT AT: " + this.lockedOrbitTarget.name);
 
         const targetPos = new THREE.Vector3();
+        
+        // THE FIX: Synced the tracker to match the update loop so it grabs the actual mesh
         const tracker =
+          this.lockedOrbitTarget.mesh ||
+          this.lockedOrbitTarget.visualNode ||
           this.lockedOrbitTarget.orbitGroup ||
           this.lockedOrbitTarget.pivot ||
           this.lockedOrbitTarget;
 
-        if (tracker && typeof tracker.getWorldPosition === "function") {
-          tracker.updateMatrixWorld(true);
-          tracker.getWorldPosition(targetPos);
+        if (tracker) {
+          if (typeof tracker.updateMatrixWorld === "function") {
+            tracker.updateMatrixWorld(true);
+          }
+          if (typeof tracker.getWorldPosition === "function") {
+            tracker.getWorldPosition(targetPos);
+          } else if (tracker.position) {
+            targetPos.copy(tracker.position);
+          }
         }
 
-        // 2. SAVE THE DISTANCE: This stops the "snapping" to 150km
+        // 2. SAVE THE DISTANCE: Calculates true distance to the mesh, not the pivot
         this.orbitDistance = this.mesh.position.distanceTo(targetPos);
         console.log(
           "Orbit Radius Set To: " + this.orbitDistance.toFixed(2) + " km",
         );
 
-        // 3. Set the starting angle
+        // 3. Set the starting angle (Your Tether Lock survived!)
         const dx = this.mesh.position.x - targetPos.x;
         const dz = this.mesh.position.z - targetPos.z;
         this.orbitAngle = Math.atan2(dz, dx);
