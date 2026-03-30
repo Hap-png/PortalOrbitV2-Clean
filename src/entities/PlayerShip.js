@@ -76,6 +76,9 @@ export class PlayerShip {
     headlight.position.set(0, 0, 0); // Keep it right at the camera lens
     camera.add(headlight);
 
+    this.dummyMatrix = new THREE.Matrix4();
+    this.targetQuaternion = new THREE.Quaternion();
+
     // 4. Custom Physics Engine Parameters
     this.velocity = new THREE.Vector3(0, 0, 0);
     // Cinematic Orbit Variables
@@ -83,6 +86,12 @@ export class PlayerShip {
     this.orbitAngle = 0;
     this.orbitSpeed = 0.002;
     this.rotationVelocity = new THREE.Vector3(0, 0, 0);
+
+    // --- NEW: Manual Drone Hover Variables ---
+    this.isManualHovering = false;
+    this.manualSpherical = new THREE.Spherical();
+    this.targetSpherical = new THREE.Spherical(); // <--- ADD THIS: The invisible chaser target!
+    this.hoverSpeed = 0.002;
 
     // --- WARP DRIVE SPECS ---
     this.hasWarpLock = false;
@@ -130,7 +139,7 @@ export class PlayerShip {
     }
   }
 
- update(delta, planets = []) {
+  update(delta, planets = []) {
     // ==========================================
     // V3 CINEMATIC ORBIT MODULE (THE CLUTCH)
     // ==========================================
@@ -145,12 +154,12 @@ export class PlayerShip {
       }
 
       // 2. THE GPS SYNC
-      const targetPos = new THREE.Vector3(); 
+      const targetPos = new THREE.Vector3();
 
       // We need to grab the ACTUAL offset model, not the center pivot
       const tracker =
-        this.lockedOrbitTarget.mesh ||         // <--- Added this (most common)
-        this.lockedOrbitTarget.visualNode || 
+        this.lockedOrbitTarget.mesh || // <--- Added this (most common)
+        this.lockedOrbitTarget.visualNode ||
         this.lockedOrbitTarget.orbitGroup ||
         this.lockedOrbitTarget.pivot ||
         this.lockedOrbitTarget;
@@ -159,14 +168,14 @@ export class PlayerShip {
         if (typeof tracker.updateMatrixWorld === "function") {
           tracker.updateMatrixWorld(true);
         }
-        
+
         if (typeof tracker.getWorldPosition === "function") {
           tracker.getWorldPosition(targetPos);
         } else if (tracker.position) {
           targetPos.copy(tracker.position);
         }
-      }  
-      
+      }
+
       // ... rest of orbital physics logic ...
 
       // 3. SUN-DIVE PROTECTOR: If the planet is missing, don't move.
@@ -174,16 +183,21 @@ export class PlayerShip {
 
       // 4. MOVE ON THE RAIL (Smooth Polar Entry)
       this.orbitPhase += this.orbitSpeed || 0.002;
-      
-      const safeDist = (typeof this.orbitDistance === 'number' && !isNaN(this.orbitDistance)) ? this.orbitDistance : 3;
+
+      const safeDist =
+        typeof this.orbitDistance === "number" && !isNaN(this.orbitDistance)
+          ? this.orbitDistance
+          : 3;
 
       // Calculate smooth vertical and horizontal offsets
       const elevation = Math.sin(this.orbitPhase) * safeDist;
       const horizontalRadius = Math.cos(this.orbitPhase) * safeDist;
 
       // Apply the locked longitude
-      const finalX = targetPos.x + Math.cos(this.orbitLongitude) * horizontalRadius;
-      const finalZ = targetPos.z + Math.sin(this.orbitLongitude) * horizontalRadius;
+      const finalX =
+        targetPos.x + Math.cos(this.orbitLongitude) * horizontalRadius;
+      const finalZ =
+        targetPos.z + Math.sin(this.orbitLongitude) * horizontalRadius;
       const finalY = targetPos.y + elevation;
 
       // LERP everything to eliminate the remaining "jumps"
@@ -195,19 +209,33 @@ export class PlayerShip {
       const awayPoint = new THREE.Vector3()
         .copy(this.mesh.position)
         .add(new THREE.Vector3().subVectors(this.mesh.position, targetPos));
-      
-      const currentRotation = this.mesh.quaternion.clone();
-      
-      // Force the 'Up' vector to be the world's Y-axis BEFORE looking
-      this.mesh.up.set(0, 1, 0); 
-      this.mesh.lookAt(awayPoint);
-      
-      const targetRotation = this.mesh.quaternion.clone();
-      this.mesh.quaternion.copy(currentRotation);
-      
-      // We use a slightly faster slerp (0.1) so the nose keeps up with the vertical dive
-      this.mesh.quaternion.slerp(targetRotation, 0.1);
-      
+
+      // 1. Calculate the ideal rotation matrix
+      this.dummyMatrix.lookAt(
+        awayPoint,
+        this.mesh.position,
+        new THREE.Vector3(0, 1, 0),
+      );
+
+      // 2. Extract that ideal rotation into our target quaternion
+      this.targetQuaternion.setFromRotationMatrix(this.dummyMatrix);
+
+      // 3. Measure the remaining angle (returns a value in radians)
+      let angleToTarget = this.mesh.quaternion.angleTo(this.targetQuaternion);
+
+      // 4. THE HYBRID SWITCH
+      // 2.0 radians is about 114 degrees. If the target suddenly flips behind us, it's gimbal lock.
+      if (angleToTarget > 2.0) {
+        // Trigger the slow, smooth cinematic roll ONLY for the polar flip
+        let stepSize = 0.005 + 0.02 * Math.sin(angleToTarget);
+        this.mesh.quaternion.rotateTowards(this.targetQuaternion, stepSize);
+      } else {
+        // Normal flight tracking!
+        // Uses standard slerp to keep that perfect engine acceleration/deceleration.
+        // (Adjust 0.03 if you were using a slightly different number before this)
+        this.mesh.quaternion.slerp(this.targetQuaternion, 0.03);
+      }
+
       // Reinforce the vertical lock
       this.mesh.up.set(0, 1, 0);
 
@@ -216,14 +244,15 @@ export class PlayerShip {
     }
     // --- THE V-KEY IGNITION SWITCH (Dynamic Distance Version) ---
     if (this.keys["v"] || this.keys["V"]) {
-      if (this.autoTarget && !this.isOrbiting) {
+      // Swapped to our new hover variable!
+      if (this.autoTarget && !this.isManualHovering) {
         // 1. Lock the planet so it doesn't change mid-flight
         this.lockedOrbitTarget = this.autoTarget;
-        console.log("LOCKING ORBIT AT: " + this.lockedOrbitTarget.name);
+        console.log("LOCKING HOVER AT: " + this.lockedOrbitTarget.name);
 
         const targetPos = new THREE.Vector3();
-        
-        // THE FIX: Synced the tracker to match the update loop so it grabs the actual mesh
+
+        // Synced the tracker to match the update loop so it grabs the actual mesh
         const tracker =
           this.lockedOrbitTarget.mesh ||
           this.lockedOrbitTarget.visualNode ||
@@ -242,38 +271,121 @@ export class PlayerShip {
           }
         }
 
-        // 2. SAVE THE DISTANCE: Calculates true distance to the mesh, not the pivot
-        this.orbitDistance = this.mesh.position.distanceTo(targetPos);
-        console.log(
-          "Orbit Radius Set To: " + this.orbitDistance.toFixed(2) + " km",
+        // 2. THE NEW SPHERICAL TETHER LOCK
+        let offset = new THREE.Vector3().subVectors(
+          this.mesh.position,
+          targetPos,
         );
+        this.manualSpherical.setFromVector3(offset);
+        this.manualSpherical.radius = this.mesh.position.distanceTo(targetPos);
 
-        // 3. THE TETHER LOCK: Sync horizontal and vertical starting points
-        const dx = this.mesh.position.x - targetPos.x;
-        const dy = this.mesh.position.y - targetPos.y;
-        const dz = this.mesh.position.z - targetPos.z;
+        // <--- ADD THIS LINE: Sync the target instantly on ignition!
+        this.targetSpherical.copy(this.manualSpherical);
 
-        // horizontal distance for math sync
-        const horizontalDist = Math.sqrt(dx * dx + dz * dz);
-        
-        // Lock the horizontal slice
-        this.orbitLongitude = Math.atan2(dz, dx); 
-        
-        // NEW: Calculate the vertical starting phase so we don't jump
-        // This tells the engine if we are starting at the top, bottom, or equator
-        this.orbitPhase = Math.atan2(dy, horizontalDist); 
-        
-        this.isOrbiting = true;
-      } else if (this.isOrbiting) {
+        // --- NEW: CAPTURE THE CUSTOM SIDEWAYS ANGLE ---
+        // 1. Where WOULD we look if we faced the planet?
+        this.dummyMatrix.lookAt(
+          this.mesh.position,
+          targetPos,
+          new THREE.Vector3(0, 1, 0),
+        );
+        let idealLook = new THREE.Quaternion().setFromRotationMatrix(
+          this.dummyMatrix,
+        );
+        // 2. Measure the difference between that and where you are ACTUALLY looking
+        this.hoverRotationOffset = this.mesh.quaternion
+          .clone()
+          .multiply(idealLook.invert());
+
+        this.isManualHovering = true;
+      } else if (this.isManualHovering) {
         // THE OFF SWITCH
-        console.log("Breaking Orbit.");
-        this.isOrbiting = false;
-        this.lockedOrbitTarget = null; // <--- Keep this! It clears the targeting computer.
+        console.log("Breaking Hover.");
+        this.isManualHovering = false;
+        this.lockedOrbitTarget = null; // Clears the targeting computer.
       }
 
       this.keys["v"] = false;
       this.keys["V"] = false;
     }
+
+    // --- STEP 3: MANUAL DRONE HOVER ENGINE ---
+
+    // 0. THE ESCAPE HATCH: Press 'W' to break the hover lock instantly!
+    if (this.isManualHovering && (this.keys["w"] || this.keys["W"])) {
+      console.log("Emergency Hover Eject!");
+      this.isManualHovering = false;
+      this.lockedOrbitTarget = null;
+    }
+
+    // 1. The engine math (Only runs if we didn't just eject!)
+    if (this.isManualHovering && this.lockedOrbitTarget) {
+      const currentTargetPos = new THREE.Vector3();
+      const tracker =
+        this.lockedOrbitTarget.mesh ||
+        this.lockedOrbitTarget.orbitGroup ||
+        this.lockedOrbitTarget;
+      // ... (the rest of your Step 3 code continues here) ...
+      if (typeof tracker.getWorldPosition === "function") {
+        tracker.getWorldPosition(currentTargetPos);
+      } else if (tracker.position) {
+        currentTargetPos.copy(tracker.position);
+      }
+
+      const left = this.keys["arrowleft"] || this.keys["ArrowLeft"];
+      const right = this.keys["arrowright"] || this.keys["ArrowRight"];
+      const up = this.keys["arrowup"] || this.keys["ArrowUp"];
+      const down = this.keys["arrowdown"] || this.keys["ArrowDown"];
+
+      // 1. Arrow keys move the INVISIBLE TARGET, not the camera!
+      if (left) this.targetSpherical.theta -= this.hoverSpeed;
+      if (right) this.targetSpherical.theta += this.hoverSpeed;
+      if (up) this.targetSpherical.phi -= this.hoverSpeed;
+      if (down) this.targetSpherical.phi += this.hoverSpeed;
+
+      // 2. Clamp the TARGET phi so it doesn't cross the poles
+      const epsilon = 0.01;
+      this.targetSpherical.phi = Math.max(
+        epsilon,
+        Math.min(Math.PI - epsilon, this.targetSpherical.phi),
+      );
+
+      // 3. THE LERP: Smoothly drag the actual camera toward the target
+      // Change the '0.05' to a lower number (like 0.02) for a heavier, slippier ship!
+      this.manualSpherical.theta = THREE.MathUtils.lerp(
+        this.manualSpherical.theta,
+        this.targetSpherical.theta,
+        0.05,
+      );
+      this.manualSpherical.phi = THREE.MathUtils.lerp(
+        this.manualSpherical.phi,
+        this.targetSpherical.phi,
+        0.05,
+      );
+
+      // 4. Convert back to XYZ
+      let newOffset = new THREE.Vector3().setFromSpherical(
+        this.manualSpherical,
+      );
+      this.mesh.position.copy(currentTargetPos).add(newOffset);
+
+      // 5. MAINTAIN THE SIDEWAYS CAMERA LOCK
+      this.dummyMatrix.lookAt(
+        this.mesh.position,
+        currentTargetPos,
+        new THREE.Vector3(0, 1, 0),
+      );
+      let baseLook = new THREE.Quaternion().setFromRotationMatrix(
+        this.dummyMatrix,
+      );
+
+      // Multiply the mathematical center by your custom sideways offset
+      this.targetQuaternion.copy(this.hoverRotationOffset).multiply(baseLook);
+
+      // Smoothly steer the nose along the curve
+      this.mesh.quaternion.slerp(this.targetQuaternion, 0.05);
+    }
+
     // --- ROTATION (True 6DOF Starfighter Flight) ---
     if (!this.isDocking && !this.isOrbiting) {
       // 0. Check for Manual Override
@@ -387,11 +499,11 @@ export class PlayerShip {
         const brakeZone = 4000;
         const tetherZone = this.autoTarget.tetherDistance || 300;
 
-        // 3. SMART THROTTLE & REAL BRAKES        
+        // 3. SMART THROTTLE & REAL BRAKES
         // CONDITION C-1: HARD STOP AT THE DOORSTEP
         if (distanceToTarget <= parkingDistance) {
           const currentSpeed = this.velocity.length() * 1000;
-          if (!this.arrivalComplete) {            
+          if (!this.arrivalComplete) {
             // Try this: Smoothly drain the remaining speed
             this.velocity.multiplyScalar(0.8);
             if (this.velocity.length() < 0.01) {

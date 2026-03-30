@@ -1,33 +1,36 @@
-import * as THREE from 'three';
+import * as THREE from "three";
 
 export class Star {
-    constructor(name, radius, texturePath, rotationSpeed) {
-        this.name = name;
-        this.targetName = name; // <--- THE FIX: This is what the Nav Computer reads!
-        this.rotationSpeed = rotationSpeed;
+  constructor(name, radius, texturePath, rotationPeriod) {
+    this.name = name;
+    this.targetName = name;
 
-        // The geometry for the giant sphere
-        const geometry = new THREE.SphereGeometry(radius, 64, 64);
+    // Let's call it rotationPeriod (in days) so it matches your Planets!
+    this.rotationPeriod = rotationPeriod;
 
-        // MeshBasicMaterial is the secret: it ignores shadows and always glows!
-        const material = new THREE.MeshBasicMaterial();
+    // THE FIX 1: Dropped geometry segments from 64 to 32 for a massive GPU save
+    const geometry = new THREE.SphereGeometry(radius, 32, 32);
 
-        if (texturePath) {
-            const textureLoader = new THREE.TextureLoader();
-            material.map = textureLoader.load(texturePath);
-        } else {
-            material.color.setHex(0xffaa00); // Fallback orange color
-        }
+    // Perfectly optimized material choice!
+    const material = new THREE.MeshBasicMaterial();
 
-        this.mesh = new THREE.Mesh(geometry, material);
-        this.mesh.name = name; // <--- ADD THIS LINE!
-        // THE FIX: Point the orbitGroup directly to the mesh so the HUD knows where to draw the text!
-        this.orbitGroup = this.mesh;
+    if (texturePath) {
+      const textureLoader = new THREE.TextureLoader();
+      material.map = textureLoader.load(texturePath);
+    } else {
+      material.color.setHex(0xffaa00);
     }
 
-    // Stars don't orbit, but they do spin!
-    update(currentSimDays) {
-        // The Sun rotates roughly once every 25 days
-        this.mesh.rotation.y = (currentSimDays / 25.0) * (Math.PI * 2);
+    this.mesh = new THREE.Mesh(geometry, material);
+    this.mesh.name = name;
+    this.orbitGroup = this.mesh;
+  }
+
+  update(currentSimDays) {
+    // THE FIX 2: Use the rotationPeriod passed from main.js instead of hardcoding 25!
+    if (this.rotationPeriod > 0) {
+      this.mesh.rotation.y =
+        (currentSimDays / this.rotationPeriod) * (Math.PI * 2);
     }
+  }
 }

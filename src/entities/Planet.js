@@ -92,11 +92,12 @@ export class Planet {
     this.pivot.add(this.orbitGroup);
 
     // 3. The Sphere: High-resolution geometry
-    const geometry = new THREE.SphereGeometry(radius, 64, 64);
-    const material = new THREE.MeshStandardMaterial({
-      roughness: 0.8,
-      metalness: 0.1,
-    });
+const geometry = new THREE.SphereGeometry(radius, 64, 64);
+
+// THE FIX: Swap to Lambert for massive GPU savings.
+// We remove roughness and metalness because Lambert is naturally matte!
+const material = new THREE.MeshLambertMaterial();
+   
 
     if (texturePath) {
       const textureLoader = new THREE.TextureLoader();

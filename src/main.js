@@ -953,6 +953,15 @@ function animate() {
     const grabDistance = planet.tetherDistance || 300;
     planet.uiLabel.innerText = `${planet.targetName}\n${planet.savedDistance.toFixed(0)} km`;
 
+    // --- THE TARGET LOCK OVERRIDE ---
+    if (ship.isManualHovering && ship.lockedOrbitTarget) {
+        // If the drone is flying, FORCE the tether to stay connected!
+        bestTarget = ship.lockedOrbitTarget;
+    } else if ((ship.keys["shift"] || ship.keys["Shift"]) && ship.autoTarget) {
+        // If holding shift while setting up the run, hold the lock!
+        bestTarget = ship.autoTarget;
+    }
+
     // --- APPLY COLORS BASED ON THE WINNER ---
     if (planet === bestTarget) {
       if (planet.savedDistance > grabDistance) {
