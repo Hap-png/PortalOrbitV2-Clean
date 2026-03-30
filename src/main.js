@@ -141,7 +141,7 @@ const previousShipQuaternion = new THREE.Quaternion(); // <-- ADD THIS NEW LINE
 
 // --- 2. LIGHTING ---
 // Crisp ice-blue for a high-tech "Vacuum of Space" feel
-const ambientLight = new THREE.AmbientLight(0xddeeff, 0.3);
+const ambientLight = new THREE.AmbientLight(0xddeeff, 0.08);
 scene.add(ambientLight);
 
 // (Only one sunLight allowed!)
@@ -154,8 +154,8 @@ sunLight.shadow.mapSize.width = 2048;
 sunLight.shadow.mapSize.height = 2048;
 sunLight.shadow.bias = -0.001;
 
-// THE FIX: Tell the shadow camera to see all the way to the outer planets!
-sunLight.shadow.camera.near = 0.1;
+// Push the starting line JUST outside the 90-radius sun!
+sunLight.shadow.camera.near = 95; 
 sunLight.shadow.camera.far = 1000000;
 
 // --- 3. THE SOLAR SYSTEM ---
@@ -223,6 +223,11 @@ previousShipPosition.copy(ship.mesh.position);
 
 // Create the Sun
 const sun = new Star("Sun", 90, "assets/textures/sun.jpg", 0.02);
+
+// THE FIX: Tell the Sun's physical mesh to ignore shadows
+sun.mesh.castShadow = false;
+sun.mesh.receiveShadow = false;
+
 scene.add(sun.mesh);
 
 // --- THE ROGUE COMET ---
