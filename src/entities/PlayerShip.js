@@ -172,39 +172,43 @@ export class PlayerShip {
       // 3. SUN-DIVE PROTECTOR: If the planet is missing, don't move.
       if (targetPos.length() < 10) return;
 
-      // 4. MOVE ON THE RAIL
-      this.orbitAngle += this.orbitSpeed || 0.002;
+      // 4. MOVE ON THE RAIL (Smooth Polar Entry)
+      this.orbitPhase += this.orbitSpeed || 0.002;
       
-      // Use the planet/moon distance if it exists. If it's missing (probes), force a tight 3-unit orbit.
-      const safeDist = (typeof this.orbitDistance === 'number' && !isNaN(this.orbitDistance) && this.orbitDistance > 0) 
-        ? this.orbitDistance 
-        : 2; // <--- This is your new Hubble/Juno distance. Change to 2 if you want to scrape the paint. 
+      const safeDist = (typeof this.orbitDistance === 'number' && !isNaN(this.orbitDistance)) ? this.orbitDistance : 3;
 
-      // 1. Calculate the 'Perfect' destination on the circle
-      const finalX = targetPos.x + Math.cos(this.orbitAngle) * safeDist;
-      const finalZ = targetPos.z + Math.sin(this.orbitAngle) * safeDist;
+      // Calculate smooth vertical and horizontal offsets
+      const elevation = Math.sin(this.orbitPhase) * safeDist;
+      const horizontalRadius = Math.cos(this.orbitPhase) * safeDist;
 
-      // 2. The LERP (Smooth Slide): Move 10% of the distance every frame
+      // Apply the locked longitude
+      const finalX = targetPos.x + Math.cos(this.orbitLongitude) * horizontalRadius;
+      const finalZ = targetPos.z + Math.sin(this.orbitLongitude) * horizontalRadius;
+      const finalY = targetPos.y + elevation;
+
+      // LERP everything to eliminate the remaining "jumps"
       this.mesh.position.x += (finalX - this.mesh.position.x) * 0.1;
       this.mesh.position.z += (finalZ - this.mesh.position.z) * 0.1;
-      
-      // FIX 1: LERP the Y-axis instead of teleporting instantly
-      this.mesh.position.y += (targetPos.y - this.mesh.position.y) * 0.1;
+      this.mesh.position.y += (finalY - this.mesh.position.y) * 0.1;
 
-      // 5. LOCK EYES ON THE TARGET
+      // 5. LOCK EYES ON THE TARGET (Stationary World-Up Version)
       const awayPoint = new THREE.Vector3()
         .copy(this.mesh.position)
         .add(new THREE.Vector3().subVectors(this.mesh.position, targetPos));
       
-      // FIX 2: Smooth Camera Rotation (Slerp)
-      const currentRotation = this.mesh.quaternion.clone(); // 1. Save where we are currently looking
+      const currentRotation = this.mesh.quaternion.clone();
       
-      this.mesh.lookAt(awayPoint);                          // 2. Instantly snap to the perfect target angle
-      const targetRotation = this.mesh.quaternion.clone();  // 3. Save that perfect angle as the goal
+      // Force the 'Up' vector to be the world's Y-axis BEFORE looking
+      this.mesh.up.set(0, 1, 0); 
+      this.mesh.lookAt(awayPoint);
       
-      this.mesh.quaternion.copy(currentRotation);           // 4. Revert back to our current view
-      this.mesh.quaternion.slerp(targetRotation, 0.08);     // 5. Smoothly pan the camera 8% towards the goal every frame
+      const targetRotation = this.mesh.quaternion.clone();
+      this.mesh.quaternion.copy(currentRotation);
       
+      // We use a slightly faster slerp (0.1) so the nose keeps up with the vertical dive
+      this.mesh.quaternion.slerp(targetRotation, 0.1);
+      
+      // Reinforce the vertical lock
       this.mesh.up.set(0, 1, 0);
 
       // THE CLUTCH: Stop regular flight logic while orbiting
@@ -244,16 +248,27 @@ export class PlayerShip {
           "Orbit Radius Set To: " + this.orbitDistance.toFixed(2) + " km",
         );
 
-        // 3. Set the starting angle (Your Tether Lock survived!)
+        // 3. THE TETHER LOCK: Sync horizontal and vertical starting points
         const dx = this.mesh.position.x - targetPos.x;
+        const dy = this.mesh.position.y - targetPos.y;
         const dz = this.mesh.position.z - targetPos.z;
-        this.orbitAngle = Math.atan2(dz, dx);
 
+        // horizontal distance for math sync
+        const horizontalDist = Math.sqrt(dx * dx + dz * dz);
+        
+        // Lock the horizontal slice
+        this.orbitLongitude = Math.atan2(dz, dx); 
+        
+        // NEW: Calculate the vertical starting phase so we don't jump
+        // This tells the engine if we are starting at the top, bottom, or equator
+        this.orbitPhase = Math.atan2(dy, horizontalDist); 
+        
         this.isOrbiting = true;
       } else if (this.isOrbiting) {
+        // THE OFF SWITCH
         console.log("Breaking Orbit.");
         this.isOrbiting = false;
-        this.lockedOrbitTarget = null;
+        this.lockedOrbitTarget = null; // <--- Keep this! It clears the targeting computer.
       }
 
       this.keys["v"] = false;
