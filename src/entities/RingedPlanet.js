@@ -24,6 +24,10 @@ export class RingedPlanet {
     fallbackRotationSpeed,
   ) {
     this.name = name;
+    // Inside your RingedPlanet constructor:
+    this.targetName = name;
+    // You can pass tetherDistance as a parameter, or calculate it based on the rings
+    this.tetherDistance = 400;
 
     this.orbitPeriod = REAL_ORBIT_DAYS[name] || 365 / fallbackOrbitSpeed;
     this.rotationPeriod = REAL_ROTATION_DAYS[name] || 1 / fallbackRotationSpeed;
@@ -55,8 +59,8 @@ export class RingedPlanet {
     }
 
     this.mesh = new THREE.Mesh(geometry, material);
-    this.mesh.castShadow = true;     // <--- ADD THIS
-    this.mesh.receiveShadow = true;  // <--- ADD THIS
+    this.mesh.castShadow = true; // <--- ADD THIS
+    this.mesh.receiveShadow = true; // <--- ADD THIS
     this.tiltContainer.add(this.mesh);
 
     // 5. The Rings! (The V1 Barcode Method)
@@ -89,23 +93,23 @@ export class RingedPlanet {
       ringTex.wrapS = THREE.ClampToEdgeWrapping;
       ringTex.wrapT = THREE.ClampToEdgeWrapping;
 
-      // 3. The Material 
+      // 3. The Material
       const ringMat = new THREE.MeshBasicMaterial({
         map: ringTex,
-        color: 0xe2bf7d,         
+        color: 0xe2bf7d,
         side: THREE.DoubleSide,
         transparent: true,
         opacity: 1.0,
-        depthWrite: true         // <--- THIS FIXES THE X-RAY BUG!
+        depthWrite: true, // <--- THIS FIXES THE X-RAY BUG!
       });
 
       this.ringMesh = new THREE.Mesh(ringGeo, ringMat);
       this.ringMesh.rotation.x = Math.PI / 2;
-      
+
       // --- SHADOWS DISABLED FOR BEAUTY ---
-      // this.ringMesh.castShadow = true;    
-      // this.ringMesh.receiveShadow = true; 
-      
+      // this.ringMesh.castShadow = true;
+      // this.ringMesh.receiveShadow = true;
+
       this.tiltContainer.add(this.ringMesh);
     }
   }

@@ -463,120 +463,140 @@ export class PlayerShip {
     }
 
     // --- INERTIAL BRAKES ---
-
-    // --- INERTIAL BRAKES ---
-
-    // --- INERTIAL BRAKES ---
     if (this.keys[" "]) {
       this.velocity.multiplyScalar(0.9);
       this.rotationVelocity.multiplyScalar(0.8);
     }
 
     // --- THRUST (Momentum, Velocity & Warp) ---
+    // THE SAFETY LATCH: Reset the lock when the pilot lets go of the key
+    if (!this.keys["w"] && !this.keys["W"]) {
+        this.warpLockout = false;
+    }
+
     const thrust = new THREE.Vector3(0, 0, 0);
 
-    if (this.keys["w"]) {
-      if (this.hasWarpLock && this.autoTarget) {
-        // 1. Find our exact distance
-        const targetPos = new THREE.Vector3();
-        const tracker =
-          this.autoTarget.mesh ||
-          this.autoTarget.group ||
-          this.autoTarget.model ||
-          this.autoTarget.orbitGroup ||
-          this.autoTarget.mesh ||
-          this.autoTarget.pivot ||
-          this.autoTarget;
-        if (tracker && tracker.getWorldPosition) {
-          tracker.getWorldPosition(targetPos);
-        } else {
-          targetPos.copy(this.autoTarget.position);
-        }
-        const distanceToTarget = this.mesh.position.distanceTo(targetPos);
+    if (this.keys["w"] || this.keys["W"]) {
+      
+      // THE FIX: "Eat" the key press! If lockout is active, pin the ship and do nothing.
+      if (this.warpLockout) {
+        this.warpVelocity = 0;
+        this.velocity.set(0, 0, 0); 
+        thrust.z = 0;
+      } else {
+        const activeTarget = this.autoTarget || this.lockedOrbitTarget;
 
-        // 2. FIXED Arrival Zones (Back to the high-speed approach!)
-        const parkingDistance = 150;
-        const brakeZone = 4000;
-        const tetherZone = this.autoTarget.tetherDistance || 300;
+        if (this.hasWarpLock && activeTarget) {
+          const targetPos = new THREE.Vector3();
+          const tracker = activeTarget.mesh || activeTarget.orbitGroup || activeTarget;
+          
+          if (tracker && tracker.getWorldPosition) {
+            tracker.getWorldPosition(targetPos);
+          } else {
+            targetPos.copy(activeTarget.position);
+          }
 
-        // 3. SMART THROTTLE & REAL BRAKES
-        // CONDITION C-1: HARD STOP AT THE DOORSTEP
-        if (distanceToTarget <= parkingDistance) {
-          const currentSpeed = this.velocity.length() * 1000;
-          if (!this.arrivalComplete) {
-            // Try this: Smoothly drain the remaining speed
-            this.velocity.multiplyScalar(0.8);
-            if (this.velocity.length() < 0.01) {
-              this.velocity.set(0, 0, 0);
+          // Using this.mesh.position to prevent the Undefined crash!
+          const distanceToTarget = this.mesh.position.distanceTo(targetPos);
+
+          // 1. GET PLANET SIZE
+          const planetScale = (tracker && tracker.scale) ? Math.max(tracker.scale.x, 1) : 1;
+          
+          // 2. DYNAMIC Arrival Zones
+          const baseTether = this.autoTarget.tetherDistance || 300;
+          const tetherZone = baseTether * planetScale; 
+          const parkingDistance = tetherZone * 0.8; 
+          
+          const dockingZone = parkingDistance + 300; 
+          const finalApproachZone = parkingDistance + 1500; 
+          const brakeZone = Math.max(8000, parkingDistance * 5); 
+
+          // 3. THE 5-STAGE ENGINE LOGIC
+          if (distanceToTarget <= parkingDistance) {
+            // --- STAGE 4: THE INSTANT STOP & LOCKOUT ---
+            if (!this.arrivalComplete) {
+              this.velocity.set(0, 0, 0); 
+              this.warpVelocity = 0; 
+              thrust.z = 0;
+              
               this.autoPilotActive = false;
+              this.arrivalComplete = true; 
+              
+              // ENGAGE THE LATCH!
+              this.warpLockout = true; 
+              console.log("Arrival Complete. Engines locked until W is released.");
             }
-            this.warpVelocity = 0; // Full engine kill
-            thrust.z = 0;
-            this.velocity.multiplyScalar(0.85);
-
-            // Once stopped, check if we are in the Orange Zone to release!
-            if (currentSpeed < 1.0 && distanceToTarget <= tetherZone) {
-              this.arrivalComplete = true; // Brakes off! Steering off!
+          } else if (distanceToTarget < dockingZone) {
+            // --- STAGE 3: THE DOCKING CRAWL ---
+            this.arrivalComplete = false;
+            const crawlSpeed = this.maxWarpSpeed * 0.05; 
+            
+            if (this.warpVelocity > crawlSpeed) {
+               this.warpVelocity -= this.warpAcceleration * 8 * delta; 
+            } else {
+               this.warpVelocity += this.warpAcceleration * delta;
+               if (this.warpVelocity > crawlSpeed) this.warpVelocity = crawlSpeed;
             }
+            this.velocity.multiplyScalar(0.85); 
+            thrust.z = -this.warpVelocity * delta;
+
+          } else if (distanceToTarget < finalApproachZone) {
+            // --- STAGE 2: FINAL APPROACH ---
+            this.arrivalComplete = false;
+            const approachSpeed = this.maxWarpSpeed * 0.10; 
+            
+            if (this.warpVelocity > approachSpeed) {
+               this.warpVelocity -= this.warpAcceleration * 5 * delta; 
+            } else {
+               this.warpVelocity += this.warpAcceleration * delta;
+               if (this.warpVelocity > approachSpeed) this.warpVelocity = approachSpeed;
+            }
+            this.velocity.multiplyScalar(0.90); 
+            thrust.z = -this.warpVelocity * delta;
+
+          } else if (distanceToTarget < brakeZone) {
+            // --- STAGE 1: DECELERATION CURVE ---
+            this.arrivalComplete = false;
+            const runway = distanceToTarget - finalApproachZone;
+            const runwayPercentage = Math.max(0, runway / (brakeZone - finalApproachZone));
+            
+            const coastSpeed = this.maxWarpSpeed * 0.20; 
+            const warpCeiling = Math.max(coastSpeed, runwayPercentage * this.maxWarpSpeed);
+
+            if (this.warpVelocity > warpCeiling) {
+              this.warpVelocity -= this.warpAcceleration * 3 * delta;
+            } else {
+              this.warpVelocity += this.warpAcceleration * delta;
+            }
+            if (this.warpVelocity > warpCeiling) this.warpVelocity = warpCeiling;
+            this.velocity.multiplyScalar(0.95);
+            thrust.z = -this.warpVelocity * delta;
+
           } else {
-            // We are parked and inside the tether zone!
-            // 'W' now functions as a standard, manual sub-light engine.
-            this.warpVelocity = 0;
-            thrust.z = -this.thrustPower * delta;
-          }
-        } else if (distanceToTarget < brakeZone) {
-          // CONDITION C-2: DYNAMIC WARP CEILING
-          this.arrivalComplete = false;
-
-          // 1. Calculate how much 'runway' we have left
-          const runway = distanceToTarget - parkingDistance;
-
-          // 2. The Warp Ceiling: As runway shrinks, the allowed speed drops fast.
-          // We use a square root to create a natural physics deceleration curve.
-          const warpCeiling = Math.sqrt(runway * 0.05) * this.maxWarpSpeed;
-
-          // 3. Apply the Governor
-          if (this.warpVelocity > warpCeiling) {
-            // Slam the internal warp engine
-            this.warpVelocity *= 0.8;
-            // Friction/Drag on the physical momentum
-            this.velocity.multiplyScalar(0.9);
-          } else {
-            // If we are under the ceiling, we can still accelerate slightly
+            // --- STAGE 0: OPEN SPACE ---
+            this.arrivalComplete = false;
             this.warpVelocity += this.warpAcceleration * delta;
+            if (this.warpVelocity > this.maxWarpSpeed) {
+              this.warpVelocity = this.maxWarpSpeed;
+            }
+            thrust.z = -this.warpVelocity * delta;
           }
-
-          // Ensure we never stay stuck at exactly the ceiling
-          if (this.warpVelocity > warpCeiling) this.warpVelocity = warpCeiling;
-
-          thrust.z = -this.warpVelocity * delta;
         } else {
-          // CONDITION C-3: OPEN SPACE! Full speed ahead.
-          this.arrivalComplete = false; // Reset ticket
-
+          // --- MANUAL MODE (No target) ---
           this.warpVelocity += this.warpAcceleration * delta;
           if (this.warpVelocity > this.maxWarpSpeed) {
-            this.warpVelocity = this.maxWarpSpeed;
+             this.warpVelocity = this.maxWarpSpeed;
           }
           thrust.z = -this.warpVelocity * delta;
-        }
-      } else {
-        // CONDITION D: AUTOPILOT GLIDE! (Target lost or manually gliding)
-        if (this.warpVelocity > 0.1) {
-          this.warpVelocity *= 0.95;
-          thrust.z = -this.warpVelocity * delta;
-        } else {
-          this.warpVelocity = 0;
-          thrust.z = -this.thrustPower * delta;
         }
       }
     } else {
-      // CONDITION A/B: 'W' released manually. Graceful glide.
+      // --- 'W' RELEASED: GRACEFUL GLIDE ---
       if (this.warpVelocity > 0.1) {
-        this.warpVelocity *= 0.95;
+        this.warpVelocity *= 0.95; 
         thrust.z = -this.warpVelocity * delta;
       } else {
-        this.warpVelocity = 0;
+        this.warpVelocity = 0; 
       }
     }
 
