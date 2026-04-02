@@ -141,7 +141,7 @@ const previousShipQuaternion = new THREE.Quaternion(); // <-- ADD THIS NEW LINE
 
 // --- 2. LIGHTING ---
 // Crisp ice-blue for a high-tech "Vacuum of Space" feel
-const ambientLight = new THREE.AmbientLight(0xddeeff, 0.08);
+const ambientLight = new THREE.AmbientLight(0xddeeff, 0.10);
 scene.add(ambientLight);
 
 // (Only one sunLight allowed!)
@@ -324,6 +324,25 @@ hubble.isPlanet = true;
 // Push the REAL Hubble into the Nav Computer list!
 planets.push(hubble);
 console.log("Hubble is now a valid docking target!");
+
+// --- CREATE JAMES WEBB SPACE TELESCOPE (JWST) ---
+const jwst = new CustomStation(
+  "JWST",
+  "assets/models/jwst.glb",
+  earth,   // <--- Movie Magic: Glued directly to Earth!
+  0.1,     // Scale: Slightly larger than Hubble
+  120.0,   // Orbit Radius: Pushed way further out into deep space than Hubble (which is at 40)
+  0.1,     // Orbit Speed: Much slower than Hubble so it hangs out in the distance
+  0.05,    // Spin Speed: A very slow, majestic rotation
+  Math.PI  // Starting Angle
+);
+
+// Add the docking safety parameters for the Flight Computer
+jwst.isPlanet = true;
+
+// Push the JWST into the Nav Computer list!
+planets.push(jwst);
+console.log("JWST is now a valid docking target!");
 
 // --- CREATE EARTH SPACE STATION ---
 const earthStation = new SpaceStation(earth);

@@ -70,14 +70,48 @@ export class PlayerShip {
     // Keep the same slight downward tilt
     //camera.rotation.set(-0.05, 0, 0);
 
-    // ADD THESE LINES: Install a military-grade PointLight!
-    // (Color: White, Intensity: 50, Distance: 100)
-    const headlight = new THREE.PointLight(0xffffff, 50, 100);
-    headlight.position.set(0, 0, 0); // Keep it right at the camera lens
-    camera.add(headlight);
+    // --- SHIP HEADLIGHTS (THE FLOODLIGHT UPGRADE) ---
+    // Parameters: Color, Intensity, Distance, Angle, Penumbra, Decay
+    // FIXED: Changed 'ii' back to 'SpotLight'
+    this.headlight = new THREE.SpotLight(
+      0xffffff,
+      50,
+      1000,
+      Math.PI / 2,
+      1.0,
+      1,
+    );
 
+    // --- THE "HUMOR ME" POSITIONING ---
+    // Moving it to Z: 5 puts it BEHIND the nose/cockpit
+    // Moving it to Y: 4 puts it ABOVE the ship so it shines down onto the hull
+    this.headlight.position.set(0, 2, -0);
+
+    // Keep the target way out in front so the beam points forward
+    this.headlight.target.position.set(0, 0, -100);
+    this.mesh.add(this.headlight.target);
+
+    // Attached the light to the SHIP mesh
+    this.headlight.visible = false;
+    this.mesh.add(this.headlight);
+
+    // --- PUT THE ORBIT MATH BACK! ---
     this.dummyMatrix = new THREE.Matrix4();
     this.targetQuaternion = new THREE.Quaternion();
+
+    // 4. Custom Physics Engine Parameters
+    this.velocity = new THREE.Vector3(0, 0, 0);
+
+    // --- THE TOGGLE SWITCH (L KEY) ---
+    window.addEventListener("keydown", (event) => {
+      // We check for 'l' or 'L' so Caps Lock doesn't break your game
+      if (event.key.toLowerCase() === "l") {
+        this.headlight.visible = !this.headlight.visible;
+
+        // Optional: A little dashboard feedback in the console
+        console.log("Headlights: " + (this.headlight.visible ? "ON" : "OFF"));
+      }
+    });
 
     // 4. Custom Physics Engine Parameters
     this.velocity = new THREE.Vector3(0, 0, 0);
@@ -471,25 +505,25 @@ export class PlayerShip {
     // --- THRUST (Momentum, Velocity & Warp) ---
     // THE SAFETY LATCH: Reset the lock when the pilot lets go of the key
     if (!this.keys["w"] && !this.keys["W"]) {
-        this.warpLockout = false;
+      this.warpLockout = false;
     }
 
     const thrust = new THREE.Vector3(0, 0, 0);
 
     if (this.keys["w"] || this.keys["W"]) {
-      
       // THE FIX: "Eat" the key press! If lockout is active, pin the ship and do nothing.
       if (this.warpLockout) {
         this.warpVelocity = 0;
-        this.velocity.set(0, 0, 0); 
+        this.velocity.set(0, 0, 0);
         thrust.z = 0;
       } else {
         const activeTarget = this.autoTarget || this.lockedOrbitTarget;
 
         if (this.hasWarpLock && activeTarget) {
           const targetPos = new THREE.Vector3();
-          const tracker = activeTarget.mesh || activeTarget.orbitGroup || activeTarget;
-          
+          const tracker =
+            activeTarget.mesh || activeTarget.orbitGroup || activeTarget;
+
           if (tracker && tracker.getWorldPosition) {
             tracker.getWorldPosition(targetPos);
           } else {
@@ -500,78 +534,87 @@ export class PlayerShip {
           const distanceToTarget = this.mesh.position.distanceTo(targetPos);
 
           // 1. GET PLANET SIZE
-          const planetScale = (tracker && tracker.scale) ? Math.max(tracker.scale.x, 1) : 1;
-          
+          const planetScale =
+            tracker && tracker.scale ? Math.max(tracker.scale.x, 1) : 1;
+
           // 2. DYNAMIC Arrival Zones
           const baseTether = this.autoTarget.tetherDistance || 300;
-          const tetherZone = baseTether * planetScale; 
-          const parkingDistance = tetherZone * 0.8; 
-          
-          const dockingZone = parkingDistance + 300; 
-          const finalApproachZone = parkingDistance + 1500; 
-          const brakeZone = Math.max(8000, parkingDistance * 5); 
+          const tetherZone = baseTether * planetScale;
+          const parkingDistance = tetherZone * 0.8;
+
+          const dockingZone = parkingDistance + 300;
+          const finalApproachZone = parkingDistance + 1500;
+          const brakeZone = Math.max(8000, parkingDistance * 5);
 
           // 3. THE 5-STAGE ENGINE LOGIC
           if (distanceToTarget <= parkingDistance) {
             // --- STAGE 4: THE INSTANT STOP & LOCKOUT ---
             if (!this.arrivalComplete) {
-              this.velocity.set(0, 0, 0); 
-              this.warpVelocity = 0; 
+              this.velocity.set(0, 0, 0);
+              this.warpVelocity = 0;
               thrust.z = 0;
-              
+
               this.autoPilotActive = false;
-              this.arrivalComplete = true; 
-              
+              this.arrivalComplete = true;
+
               // ENGAGE THE LATCH!
-              this.warpLockout = true; 
-              console.log("Arrival Complete. Engines locked until W is released.");
+              this.warpLockout = true;
+              console.log(
+                "Arrival Complete. Engines locked until W is released.",
+              );
             }
           } else if (distanceToTarget < dockingZone) {
             // --- STAGE 3: THE DOCKING CRAWL ---
             this.arrivalComplete = false;
-            const crawlSpeed = this.maxWarpSpeed * 0.05; 
-            
-            if (this.warpVelocity > crawlSpeed) {
-               this.warpVelocity -= this.warpAcceleration * 8 * delta; 
-            } else {
-               this.warpVelocity += this.warpAcceleration * delta;
-               if (this.warpVelocity > crawlSpeed) this.warpVelocity = crawlSpeed;
-            }
-            this.velocity.multiplyScalar(0.85); 
-            thrust.z = -this.warpVelocity * delta;
+            const crawlSpeed = this.maxWarpSpeed * 0.05;
 
+            if (this.warpVelocity > crawlSpeed) {
+              this.warpVelocity -= this.warpAcceleration * 8 * delta;
+            } else {
+              this.warpVelocity += this.warpAcceleration * delta;
+              if (this.warpVelocity > crawlSpeed)
+                this.warpVelocity = crawlSpeed;
+            }
+            this.velocity.multiplyScalar(0.85);
+            thrust.z = -this.warpVelocity * delta;
           } else if (distanceToTarget < finalApproachZone) {
             // --- STAGE 2: FINAL APPROACH ---
             this.arrivalComplete = false;
-            const approachSpeed = this.maxWarpSpeed * 0.10; 
-            
-            if (this.warpVelocity > approachSpeed) {
-               this.warpVelocity -= this.warpAcceleration * 5 * delta; 
-            } else {
-               this.warpVelocity += this.warpAcceleration * delta;
-               if (this.warpVelocity > approachSpeed) this.warpVelocity = approachSpeed;
-            }
-            this.velocity.multiplyScalar(0.90); 
-            thrust.z = -this.warpVelocity * delta;
+            const approachSpeed = this.maxWarpSpeed * 0.1;
 
+            if (this.warpVelocity > approachSpeed) {
+              this.warpVelocity -= this.warpAcceleration * 5 * delta;
+            } else {
+              this.warpVelocity += this.warpAcceleration * delta;
+              if (this.warpVelocity > approachSpeed)
+                this.warpVelocity = approachSpeed;
+            }
+            this.velocity.multiplyScalar(0.9);
+            thrust.z = -this.warpVelocity * delta;
           } else if (distanceToTarget < brakeZone) {
             // --- STAGE 1: DECELERATION CURVE ---
             this.arrivalComplete = false;
             const runway = distanceToTarget - finalApproachZone;
-            const runwayPercentage = Math.max(0, runway / (brakeZone - finalApproachZone));
-            
-            const coastSpeed = this.maxWarpSpeed * 0.20; 
-            const warpCeiling = Math.max(coastSpeed, runwayPercentage * this.maxWarpSpeed);
+            const runwayPercentage = Math.max(
+              0,
+              runway / (brakeZone - finalApproachZone),
+            );
+
+            const coastSpeed = this.maxWarpSpeed * 0.2;
+            const warpCeiling = Math.max(
+              coastSpeed,
+              runwayPercentage * this.maxWarpSpeed,
+            );
 
             if (this.warpVelocity > warpCeiling) {
               this.warpVelocity -= this.warpAcceleration * 3 * delta;
             } else {
               this.warpVelocity += this.warpAcceleration * delta;
             }
-            if (this.warpVelocity > warpCeiling) this.warpVelocity = warpCeiling;
+            if (this.warpVelocity > warpCeiling)
+              this.warpVelocity = warpCeiling;
             this.velocity.multiplyScalar(0.95);
             thrust.z = -this.warpVelocity * delta;
-
           } else {
             // --- STAGE 0: OPEN SPACE ---
             this.arrivalComplete = false;
@@ -585,7 +628,7 @@ export class PlayerShip {
           // --- MANUAL MODE (No target) ---
           this.warpVelocity += this.warpAcceleration * delta;
           if (this.warpVelocity > this.maxWarpSpeed) {
-             this.warpVelocity = this.maxWarpSpeed;
+            this.warpVelocity = this.maxWarpSpeed;
           }
           thrust.z = -this.warpVelocity * delta;
         }
@@ -593,10 +636,10 @@ export class PlayerShip {
     } else {
       // --- 'W' RELEASED: GRACEFUL GLIDE ---
       if (this.warpVelocity > 0.1) {
-        this.warpVelocity *= 0.95; 
+        this.warpVelocity *= 0.95;
         thrust.z = -this.warpVelocity * delta;
       } else {
-        this.warpVelocity = 0; 
+        this.warpVelocity = 0;
       }
     }
 

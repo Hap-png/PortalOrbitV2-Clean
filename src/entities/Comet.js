@@ -15,24 +15,27 @@ export class Comet {
         const loader = new GLTFLoader();
 
         // Load your lumpy Blender masterpiece!
-        loader.load('assets/models/comet_new.glb?v=' + Math.random(), (gltf) => {
-            const model = gltf.scene;
-            
-            // 1. Loop through every part of the model to change its "vibe"
-            model.traverse((child) => {
-                if (child.isMesh) {
-                    child.material.transparent = true;
-                    child.material.opacity = 1; // <--- Lower this for more "ghostly"
-                    child.material.blending = THREE.AdditiveBlending; // <--- This creates the "glow"
-                    child.material.depthWrite = false; // <--- This blurs the overlapping spikes together
-                    child.material.side = THREE.DoubleSide;
-                }
-            });
+loader.load('assets/models/comet_new.glb?v=' + Math.random(), (gltf) => {
+    const model = gltf.scene;
+    
+    // 1. Loop through every part of the model to change its "vibe"
+    model.traverse((child) => {
+        if (child.isMesh) {
+            // THE FIX: Turn off the ghost settings!
+            // child.material.transparent = true;
+            // child.material.opacity = 1; 
+            // child.material.blending = THREE.AdditiveBlending; 
+            // child.material.depthWrite = false; 
 
-            model.scale.set(0.5, 0.5, 1.5); 
-            this.mesh.add(model);
-            console.log("Comet Ghostified!");
-        });
+            // Keep this so the camera doesn't clip through the back of the polygons
+            child.material.side = THREE.DoubleSide;
+        }
+    });
+
+    model.scale.set(0.5, 0.5, 1.5); 
+    this.mesh.add(model);
+    console.log("Comet De-Ghostified!"); // Update your log!
+});
 
         // (Keep your HUD Label and Orbit Logic below this...)
     
