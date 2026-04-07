@@ -23,14 +23,16 @@ export class PlayerShip {
         this.transportModel = gltf.scene;
 
         // 1. Shrink and rotate
-        this.transportModel.scale.set(0.05, 0.05, 0.05);
+        this.transportModel.scale.set(0.03, 0.03, 0.03);
         this.transportModel.rotation.set(0, Math.PI, 0);
 
         // 2. Center the physics
         const box = new THREE.Box3().setFromObject(this.transportModel);
         const center = box.getCenter(new THREE.Vector3());
         this.transportModel.position.sub(center);
-
+        
+        // Custom height tweak
+        this.transportModel.position.y -= 0.1;
         this.mesh.add(this.transportModel);
       },
       undefined,
@@ -43,15 +45,18 @@ export class PlayerShip {
       (gltf) => {
         this.shuttleModel = gltf.scene;
 
-        // We might need to adjust this scale later!
-        this.shuttleModel.scale.set(0.1, 0.1, 0.1);
+        // Custom scale tweak
+        this.shuttleModel.scale.set(0.07, 0.07, 0.07);
         this.shuttleModel.rotation.set(0, -Math.PI / 2, 0); // Spin to match transport
 
         // Center the physics just like the transport
         const box = new THREE.Box3().setFromObject(this.shuttleModel);
         const center = box.getCenter(new THREE.Vector3());
         this.shuttleModel.position.sub(center);
-
+        
+        // Custom height tweak
+        this.shuttleModel.position.y -= 0.04;
+        
         // THE MAGIC TRICK: Hide it immediately!
         this.shuttleModel.visible = false;
 
@@ -60,15 +65,6 @@ export class PlayerShip {
       undefined,
       (error) => console.error("Error loading shuttle.glb:", error),
     );
-
-    // 3. Mount the Camera
-    // 3. Mount the Camera (The Unbreakable Chase Cam)
-    //this.mesh.add(camera);
-    // Move the camera in SUPER close! (Up 1.5, Back 4)
-    //camera.position.set(0, 1, 2.5);
-
-    // Keep the same slight downward tilt
-    //camera.rotation.set(-0.05, 0, 0);
 
     // --- SHIP HEADLIGHTS (THE FLOODLIGHT UPGRADE) ---
     // Parameters: Color, Intensity, Distance, Angle, Penumbra, Decay
@@ -184,6 +180,9 @@ export class PlayerShip {
         this.lockedOrbitTarget = null;
         this.velocity.set(0, 0, 0);
         this.mesh.up.set(0, 1, 0);
+        
+        // Reset rotation offset when breaking orbit
+        this.hoverRotationOffset = new THREE.Quaternion();
         return;
       }
 
@@ -192,7 +191,7 @@ export class PlayerShip {
 
       // We need to grab the ACTUAL offset model, not the center pivot
       const tracker =
-        this.lockedOrbitTarget.mesh || // <--- Added this (most common)
+        this.lockedOrbitTarget.mesh ||
         this.lockedOrbitTarget.visualNode ||
         this.lockedOrbitTarget.orbitGroup ||
         this.lockedOrbitTarget.pivot ||
@@ -209,8 +208,6 @@ export class PlayerShip {
           targetPos.copy(tracker.position);
         }
       }
-
-      // ... rest of orbital physics logic ...
 
       // 3. SUN-DIVE PROTECTOR: If the planet is missing, don't move.
       if (targetPos.length() < 10) return;
@@ -239,35 +236,59 @@ export class PlayerShip {
       this.mesh.position.z += (finalZ - this.mesh.position.z) * 0.1;
       this.mesh.position.y += (finalY - this.mesh.position.y) * 0.1;
 
-      // 5. LOCK EYES ON THE TARGET (Stationary World-Up Version)
+      // 5. THE HYBRID LOOK/SPIN CONTROLLER
+      
+      // Calculate the base "ideal" look matrix facing away from target
       const awayPoint = new THREE.Vector3()
         .copy(this.mesh.position)
         .add(new THREE.Vector3().subVectors(this.mesh.position, targetPos));
 
-      // 1. Calculate the ideal rotation matrix
       this.dummyMatrix.lookAt(
         awayPoint,
         this.mesh.position,
         new THREE.Vector3(0, 1, 0),
       );
+      
+      let baseLook = new THREE.Quaternion().setFromRotationMatrix(this.dummyMatrix);
 
-      // 2. Extract that ideal rotation into our target quaternion
-      this.targetQuaternion.setFromRotationMatrix(this.dummyMatrix);
+      // --- MANUAL SPIN LOGIC RESTORED ---
+      const isShiftHeld =
+        this.keys["shift"] || this.keys["ShiftLeft"] || this.keys["ShiftRight"];
+      const isSpinning =
+        isShiftHeld && (this.keys["arrowleft"] || this.keys["arrowright"]);
 
-      // 3. Measure the remaining angle (returns a value in radians)
-      let angleToTarget = this.mesh.quaternion.angleTo(this.targetQuaternion);
+      // Initialize offset if it doesn't exist
+      if (!this.hoverRotationOffset) {
+        this.hoverRotationOffset = new THREE.Quaternion();
+      }
 
-      // 4. THE HYBRID SWITCH
-      // 2.0 radians is about 114 degrees. If the target suddenly flips behind us, it's gimbal lock.
-      if (angleToTarget > 2.0) {
-        // Trigger the slow, smooth cinematic roll ONLY for the polar flip
-        let stepSize = 0.005 + 0.02 * Math.sin(angleToTarget);
-        this.mesh.quaternion.rotateTowards(this.targetQuaternion, stepSize);
+      if (isSpinning) {
+        // 1. Physically spin the ship using the Arrow Keys while Shift is held!
+        const turnSpeed = 0.02;
+        if (this.keys["arrowleft"]) this.mesh.rotateY(turnSpeed);
+        if (this.keys["arrowright"]) this.mesh.rotateY(-turnSpeed);
+
+        // 2. TEACH THE AUTOPILOT: Save this new angle into memory
+        this.hoverRotationOffset = this.mesh.quaternion
+          .clone()
+          .multiply(baseLook.clone().invert());
+          
+        this.targetQuaternion.copy(this.mesh.quaternion);
       } else {
-        // Normal flight tracking!
-        // Uses standard slerp to keep that perfect engine acceleration/deceleration.
-        // (Adjust 0.03 if you were using a slightly different number before this)
-        this.mesh.quaternion.slerp(this.targetQuaternion, 0.03);
+        // 3. NORMAL TRACKING: Apply offset to the base look direction
+        this.targetQuaternion.copy(this.hoverRotationOffset).multiply(baseLook);
+        
+        let angleToTarget = this.mesh.quaternion.angleTo(this.targetQuaternion);
+
+        // 2.0 radians is about 114 degrees. If the target suddenly flips behind us, it's gimbal lock.
+        if (angleToTarget > 2.0) {
+          // Trigger the slow, smooth cinematic roll ONLY for the polar flip
+          let stepSize = 0.005 + 0.02 * Math.sin(angleToTarget);
+          this.mesh.quaternion.rotateTowards(this.targetQuaternion, stepSize);
+        } else {
+          // Normal flight tracking!
+          this.mesh.quaternion.slerp(this.targetQuaternion, 0.03);
+        }
       }
 
       // Reinforce the vertical lock
@@ -359,7 +380,7 @@ export class PlayerShip {
         this.lockedOrbitTarget.mesh ||
         this.lockedOrbitTarget.orbitGroup ||
         this.lockedOrbitTarget;
-      // ... (the rest of your Step 3 code continues here) ...
+        
       if (typeof tracker.getWorldPosition === "function") {
         tracker.getWorldPosition(currentTargetPos);
       } else if (tracker.position) {
@@ -372,10 +393,10 @@ export class PlayerShip {
       const down = this.keys["arrowdown"] || this.keys["ArrowDown"];
 
       // 1. Arrow keys move the INVISIBLE TARGET, not the camera!
-      if (left) this.targetSpherical.theta -= this.hoverSpeed;
-      if (right) this.targetSpherical.theta += this.hoverSpeed;
-      if (up) this.targetSpherical.phi -= this.hoverSpeed;
-      if (down) this.targetSpherical.phi += this.hoverSpeed;
+      if (left) this.targetSpherical.theta -= this.hoverSpeed || 0.02;
+      if (right) this.targetSpherical.theta += this.hoverSpeed || 0.02;
+      if (up) this.targetSpherical.phi -= this.hoverSpeed || 0.02;
+      if (down) this.targetSpherical.phi += this.hoverSpeed || 0.02;
 
       // 2. Clamp the TARGET phi so it doesn't cross the poles
       const epsilon = 0.01;
@@ -385,7 +406,6 @@ export class PlayerShip {
       );
 
       // 3. THE LERP: Smoothly drag the actual camera toward the target
-      // Change the '0.05' to a lower number (like 0.02) for a heavier, slippier ship!
       this.manualSpherical.theta = THREE.MathUtils.lerp(
         this.manualSpherical.theta,
         this.targetSpherical.theta,
@@ -403,7 +423,7 @@ export class PlayerShip {
       );
       this.mesh.position.copy(currentTargetPos).add(newOffset);
 
-      // 5. MAINTAIN THE SIDEWAYS CAMERA LOCK
+     // 5. MAINTAIN THE SIDEWAYS CAMERA LOCK
       this.dummyMatrix.lookAt(
         this.mesh.position,
         currentTargetPos,
@@ -413,11 +433,40 @@ export class PlayerShip {
         this.dummyMatrix,
       );
 
-      // Multiply the mathematical center by your custom sideways offset
-      this.targetQuaternion.copy(this.hoverRotationOffset).multiply(baseLook);
+      // Ensure the rotation offset exists so we don't get an error
+      if (!this.hoverRotationOffset) {
+        this.hoverRotationOffset = new THREE.Quaternion();
+      }
 
-      // Smoothly steer the nose along the curve
-      this.mesh.quaternion.slerp(this.targetQuaternion, 0.05);
+      // Multiply the mathematical center by your custom sideways offset
+      // ADDED .normalize() to clean the math!
+      this.targetQuaternion.copy(this.hoverRotationOffset).multiply(baseLook).normalize();
+
+      // --- THE "OLD WAY" RESTORED (SHIFT + ARROW KEYS) ---
+      const isShiftHeld = this.keys["shift"] || this.keys["ShiftLeft"] || this.keys["ShiftRight"];
+      const isSpinning = isShiftHeld && (left || right);
+
+      if (isSpinning) {
+        // 1. Physically spin the ship using the Arrow Keys while Shift is held!
+        const turnSpeed = 0.02;
+        if (left) this.mesh.rotateY(turnSpeed);
+        if (right) this.mesh.rotateY(-turnSpeed);
+
+        // 2. TEACH THE AUTOPILOT: Save this new angle into memory
+        // ADDED .normalize() to clean the math!
+        this.hoverRotationOffset = this.mesh.quaternion
+          .clone()
+          .multiply(baseLook.clone().invert())
+          .normalize(); 
+          
+        this.targetQuaternion.copy(this.mesh.quaternion).normalize();
+      } else {
+        // 3. NORMAL ORBIT: Autopilot keeps the nose locked
+        this.mesh.quaternion.slerp(this.targetQuaternion, 0.05);
+        
+        // ADDED .normalize() here as a final safety net!
+        this.mesh.quaternion.normalize(); 
+      }
     }
 
     // --- ROTATION (True 6DOF Starfighter Flight) ---
@@ -694,5 +743,8 @@ export class PlayerShip {
         engineText.style.color = "#777777";
       }
     }
+    // --- THE GLOBAL MATH PURIFIER ---
+    // Cleans the 3D rotation matrix every frame so Waldo's bones don't break!
+    this.mesh.quaternion.normalize();
   }
 }

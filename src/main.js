@@ -13,6 +13,9 @@ import { Juno } from "./entities/Juno.js";
 import { Cassini } from "./entities/Cassini.js";
 
 let backgroundMusic;
+let waldo = null;
+let waldoMixer = null; // This will play the animations
+let evaCamera;
 
 // --- 1. SCENE SETUP ---
 const scene = new THREE.Scene();
@@ -34,6 +37,17 @@ const camera = new THREE.PerspectiveCamera(
   0.001,
   1000000,
 );
+
+// 2. INITIALIZE THE EVA CAMERA
+evaCamera = new THREE.PerspectiveCamera(
+  60,
+  window.innerWidth / window.innerHeight,
+  0.001,
+  1000000,
+);
+scene.add(evaCamera);
+
+evaCamera.position.set(0, 100, 500);
 
 // ==========================================
 // --- TACTICAL OPTICS MASTER SETUP (16:9 CINEMATIC) ---
@@ -141,7 +155,7 @@ const previousShipQuaternion = new THREE.Quaternion(); // <-- ADD THIS NEW LINE
 
 // --- 2. LIGHTING ---
 // Crisp ice-blue for a high-tech "Vacuum of Space" feel
-const ambientLight = new THREE.AmbientLight(0xddeeff, 0.10);
+const ambientLight = new THREE.AmbientLight(0xddeeff, 0.1);
 scene.add(ambientLight);
 
 // (Only one sunLight allowed!)
@@ -155,7 +169,7 @@ sunLight.shadow.mapSize.height = 2048;
 sunLight.shadow.bias = -0.001;
 
 // Push the starting line JUST outside the 90-radius sun!
-sunLight.shadow.camera.near = 95; 
+sunLight.shadow.camera.near = 95;
 sunLight.shadow.camera.far = 1000000;
 
 // --- 3. THE SOLAR SYSTEM ---
@@ -209,12 +223,41 @@ const ship = new PlayerShip(camera, renderer.domElement, scene);
 // Move the ship out of the Sun and into deep space
 ship.mesh.position.set(100, 0, 0);
 
-// --- INSTANT CAMERA SETUP ---
+// --- LOAD WALDO THE ASTRONAUT ---
+const loader = new GLTFLoader();
+loader.load("assets/models/astronaut.glb", (gltf) => {
+  waldo = gltf.scene;
+
+  waldo.traverse((n) => {
+    if (n.isMesh) {
+      // This adds a subtle "space-suit" glow so he isn't pitch black
+      n.material.emissive = new THREE.Color(0x333333);
+      n.material.emissiveIntensity = 1.0;
+
+      // Fixes the console warning: .encoding -> .colorSpace
+      if (n.material.map) {
+        n.material.map.colorSpace = THREE.SRGBColorSpace;
+      }
+    }
+  });
+
+  waldo.scale.set(0.8, 0.8, 0.8);
+  waldo.visible = false;
+  scene.add(waldo);
+
+  if (gltf.animations && gltf.animations.length) {
+    waldoMixer = new THREE.AnimationMixer(waldo);
+    const action = waldoMixer.clipAction(gltf.animations[0]);
+    action.play();
+  }
+});
+
+// --- CHASE CAMERA SETUP ---
 // Spawn the camera much closer to the new micro-sized ship
 camera.position.set(
   ship.mesh.position.x,
-  ship.mesh.position.y + 0.2, // Pushed down to get level with the hull
-  ship.mesh.position.z + 0.8, // Pushed in close to the engines
+  ship.mesh.position.y + 0.08, // Pushed down to get level with the hull
+  ship.mesh.position.z + 0.5, // Pushed in close to the engines
 );
 
 controls.target.copy(ship.mesh.position);
@@ -311,7 +354,7 @@ const hubble = new CustomStation(
   "Hubble",
   "assets/models/hubble.glb",
   earth,
-  0.08, // Scale
+  0.01, // Scale
   40.0, // Orbit Radius
   2.5, // <--- THE GAS PEDAL: Orbit Speed (was 0.0005)
   0.5, // <--- THE SPIN: Spin Speed (was 0.0005)
@@ -329,12 +372,12 @@ console.log("Hubble is now a valid docking target!");
 const jwst = new CustomStation(
   "JWST",
   "assets/models/jwst.glb",
-  earth,   // <--- Movie Magic: Glued directly to Earth!
-  0.1,     // Scale: Slightly larger than Hubble
-  120.0,   // Orbit Radius: Pushed way further out into deep space than Hubble (which is at 40)
-  0.1,     // Orbit Speed: Much slower than Hubble so it hangs out in the distance
-  0.05,    // Spin Speed: A very slow, majestic rotation
-  Math.PI  // Starting Angle
+  earth, // <--- Movie Magic: Glued directly to Earth!
+  0.01, // Scale: Slightly larger than Hubble
+  120.0, // Orbit Radius: Pushed way further out into deep space than Hubble (which is at 40)
+  0.1, // Orbit Speed: Much slower than Hubble so it hangs out in the distance
+  0.05, // Spin Speed: A very slow, majestic rotation
+  Math.PI, // Starting Angle
 );
 
 // Add the docking safety parameters for the Flight Computer
@@ -349,7 +392,7 @@ const earthStation = new SpaceStation(earth);
 earthStation.pivot.rotation.y = Math.PI / 2;
 earthStation.pivot.updateMatrixWorld(true);
 // --- ACTIVATE STATION RADAR BEACON ---
-earthStation.targetName = "Space Station";
+earthStation.targetName = "Earth Station";
 earthStation.name = "Earth Station";
 earthStation.tetherDistance = 150; // <-- ADD THIS LINE! Forces you to get super close!
 // Create the HTML text element for the station
@@ -773,6 +816,61 @@ function animate() {
     if (p.update) p.update(currentSimDays);
   });
 
+  if (waldoMixer) {
+    waldoMixer.update(rawDelta);
+  }
+
+  // Check for Waldo Toggle
+  if (ship.keys["g"]) {
+    if (!ship.gWasPressed) {
+      if (waldo) {
+        waldo.visible = !waldo.visible;
+        ship.isAstronautMode = waldo.visible;
+
+        if (waldo.visible) {
+          controls.object = evaCamera;
+
+          const worldPos = new THREE.Vector3();
+          ship.mesh.getWorldPosition(worldPos);
+
+          // Offset: Right 1.5, Up 1.0, Back 3.0
+          const offset = new THREE.Vector3(0.0, 0.01, 0.1).applyQuaternion(
+            ship.mesh.quaternion,
+          );
+          evaCamera.position.copy(worldPos).add(offset);
+
+          controls.target.copy(worldPos);
+          controls.update();
+        } else {
+          // --- OFF SWITCH ---
+          controls.object = camera;
+          controls.target.copy(ship.mesh.position);
+          controls.update();
+
+          // Safety catch: Un-glue the camera just in case you pressed G while steering
+          if (evaCamera.parent === ship.mesh && ship.mesh.parent) {
+            ship.mesh.parent.attach(evaCamera);
+          }
+        }
+      }
+      ship.gWasPressed = true;
+    }
+  } else {
+    ship.gWasPressed = false;
+  }
+
+  // Check for Cinematic Toggle (R key for Release)
+  if (ship.keys["r"]) {
+    if (!ship.rWasPressed) {
+      // Toggle the boolean
+      ship.cinematicMode = !ship.cinematicMode;
+      console.log("Cinematic Mode: ", ship.cinematicMode ? "ON" : "OFF");
+      ship.rWasPressed = true;
+    }
+  } else {
+    ship.rWasPressed = false;
+  }
+
   // Move the Custom Stations AT THE EXACT SAME TIME
   // --- THE IRON-CLAD CLOCK FIX ---
   if (typeof earthStation !== "undefined") earthStation.update(currentSimDays);
@@ -979,11 +1077,18 @@ function animate() {
 
     // --- THE TARGET LOCK OVERRIDE ---
     if (ship.isManualHovering && ship.lockedOrbitTarget) {
-        // If the drone is flying, FORCE the tether to stay connected!
-        bestTarget = ship.lockedOrbitTarget;
+      // 1. If V is on, FORCE the lock!
+      bestTarget = ship.lockedOrbitTarget;
+
+      // 2. Instantly turn the tether ORANGE
+      ship.tetherTarget = ship.lockedOrbitTarget;
+
+      // 3. Hand the target to the Shift Key so it's ready
+      ship.autoTarget = ship.lockedOrbitTarget;
     } else if ((ship.keys["shift"] || ship.keys["Shift"]) && ship.autoTarget) {
-        // If holding shift while setting up the run, hold the lock!
-        bestTarget = ship.autoTarget;
+      // If holding shift, hold the lock and KEEP it ORANGE even if you turn!
+      bestTarget = ship.autoTarget;
+      ship.tetherTarget = ship.autoTarget;
     }
 
     // --- APPLY COLORS BASED ON THE WINNER ---
@@ -1033,92 +1138,86 @@ function animate() {
 
   // --- NEW AUTOMATED TRACTOR BEAM ---
   // Now the tractor beam works on everything in the planets list!
-  if (ship.tetherTarget && ship.isDocking) {
-    // ONLY run the math if the beam is actively pulling you in
-    if (ship.isDocking) {
-      const target = ship.tetherTarget;
-      const station3D = target.mesh || target.pivot;
-      //const station3D =
-      //target.orbitGroup ||
-      //target.mesh ||
-      //target.model ||
-      //target.group ||
-      //target.pivot ||
-      //target;
 
-      const hangarPos = new THREE.Vector3();
-      const stationRot = new THREE.Quaternion();
+  // 1. DEFINE THE ACTIVE TARGET: Look for Orange Line, Orbit Lock, OR Shift Lock
+  const activeTarget =
+    ship.tetherTarget || ship.lockedOrbitTarget || ship.autoTarget;
 
-      if (typeof station3D.getWorldPosition === "function") {
-        station3D.getWorldPosition(hangarPos);
-        station3D.getWorldQuaternion(stationRot);
+  // 2. TRIGGER THE BEAM: If we have ANY of those targets, and B was pressed
+  if (activeTarget && ship.isDocking) {
+    // 3. SET THE TARGET
+    const target = activeTarget;
 
-        const offset = new THREE.Vector3(0, 0, 2);
-        offset.applyQuaternion(stationRot);
-        hangarPos.add(offset);
-      } else {
-        hangarPos.copy(station3D.position);
-        stationRot.copy(station3D.quaternion);
-      }
+    const station3D = target.mesh || target.pivot;
+    //const station3D =
+    //target.orbitGroup ||
+    //target.mesh ||
+    //target.model ||
+    //target.group ||
+    //target.pivot ||
+    //target;
 
-      ship.velocity.set(0, 0, 0);
-      ship.rotationVelocity.set(0, 0, 0);
+    const hangarPos = new THREE.Vector3();
+    const stationRot = new THREE.Quaternion();
 
-      // 3. THE HYPER PULL (Cranked up to 20)
-      const distance = ship.mesh.position.distanceTo(hangarPos);
-      const beamSpeed = 1.0 * delta;
+    if (typeof station3D.getWorldPosition === "function") {
+      station3D.getWorldPosition(hangarPos);
+      station3D.getWorldQuaternion(stationRot);
 
-      // The Winch Alarm: Proves the beam is firing!
-      console.log(
-        "TRACTOR BEAM WINCH ACTIVE! Distance remaining:",
-        distance.toFixed(2),
-      );
-
-      if (distance > 0.05) {
-        const pullDir = new THREE.Vector3()
-          .subVectors(hangarPos, ship.mesh.position)
-          .normalize();
-        ship.mesh.position.add(
-          pullDir.multiplyScalar(Math.min(beamSpeed, distance)),
-        );
-      } else {
-        ship.mesh.position.copy(hangarPos); // Snap to perfection when arrived
-      }
-
-      // 4. The Gyroscope Alignment
-      const twist = new THREE.Quaternion().setFromAxisAngle(
-        new THREE.Vector3(0, 1, 0),
-        0, // 0 = Park Nose-In. (Use Math.PI if you want to park backing in!)
-      );
-      const uprightRotation = stationRot.clone().multiply(twist);
-
-      if (ship.mesh.quaternion.angleTo(uprightRotation) > 0.05) {
-        ship.mesh.quaternion.slerp(uprightRotation, 0.1);
-      } else {
-        ship.mesh.quaternion.copy(uprightRotation);
-      }
-
-      // 5. Update the HUD
-      const engineText = document.getElementById("hud-engines");
-      if (engineText) {
-        engineText.innerText = "TRACTOR BEAM: DOCKING";
-        engineText.style.color = "#00ff00";
-      }
+      const offset = new THREE.Vector3(0, 0.15, 2);
+      offset.applyQuaternion(stationRot);
+      hangarPos.add(offset);
     } else {
-      // If beam is off, clean up the HUD text
-      const engineText = document.getElementById("hud-engines");
-      if (engineText && engineText.innerText.includes("TRACTOR BEAM")) {
-        engineText.innerText = "ENGINES: IDLE";
-        engineText.style.color = "#00ffcc";
-      }
+      hangarPos.copy(station3D.position);
+      stationRot.copy(station3D.quaternion);
+    }
+
+    ship.velocity.set(0, 0, 0);
+    ship.rotationVelocity.set(0, 0, 0);
+
+    // 3. THE HYPER PULL (Cranked up to 20)
+    const distance = ship.mesh.position.distanceTo(hangarPos);
+    const beamSpeed = 1.0 * delta;
+
+    // The Winch Alarm: Proves the beam is firing!
+    console.log(
+      "TRACTOR BEAM WINCH ACTIVE! Distance remaining:",
+      distance.toFixed(2),
+    );
+
+    if (distance > 0.05) {
+      const pullDir = new THREE.Vector3()
+        .subVectors(hangarPos, ship.mesh.position)
+        .normalize();
+      ship.mesh.position.add(
+        pullDir.multiplyScalar(Math.min(beamSpeed, distance)),
+      );
+    } else {
+      ship.mesh.position.copy(hangarPos); // Snap to perfection when arrived
+      ship.mesh.quaternion.copy(stationRot); // GLUE THE ROTATION
+      ship.mesh.rotateY(Math.PI); // THE ANTIDOTE: Flip 180 back to facing outward!
+    }
+
+        // 5. Update the HUD
+    const engineText = document.getElementById("hud-engines");
+    if (engineText) {
+      engineText.innerText = "TRACTOR BEAM: DOCKING";
+      engineText.style.color = "#00ff00";
     }
   } else {
+    // If beam is off, clean up the HUD text
+    const engineText = document.getElementById("hud-engines");
+    if (engineText && engineText.innerText.includes("TRACTOR BEAM")) {
+      engineText.innerText = "ENGINES: IDLE";
+      engineText.style.color = "#00ffcc";
+    }
+
     // Failsafe: if you fly far away, ensure the beam shuts down
     ship.isDocking = false;
   }
   // --- END TRACTOR BEAM ---
 
-  // --- IMPULSE ENGINES (I & O Keys) ---
+    // --- IMPULSE ENGINES (I & O Keys) ---
   if (!ship.isDocking) {
     // 1. The Acceleration (Provides the smooth ease-in)
     const impulseThrust = 0.01 * delta;
@@ -1226,8 +1325,76 @@ function animate() {
       (currentSimDays / phobosOrbitPeriod) * (Math.PI * 2);
   }
 
-  renderer.render(scene, camera);
-}
+  // --- THE DELTA SHIFT LOGIC (MUST BE LAST, JUST BEFORE RENDER) ---
+  ship.mesh.updateMatrixWorld(true);
+  if (waldo) waldo.updateMatrixWorld(true);
+
+  if (waldo && waldo.visible) {
+    // 1. Position Waldo on the nose
+    waldo.position.copy(ship.mesh.position);
+    waldo.quaternion.copy(ship.mesh.quaternion);
+    waldo.rotateY(Math.PI);
+    const offset = new THREE.Vector3(0, -0.1, -0.3).applyQuaternion(
+      ship.mesh.quaternion,
+    );
+    waldo.position.add(offset);
+
+    // 2. The Delta Shift Camera Fix
+    if (typeof controls !== "undefined" && controls.object === evaCamera) {
+      const currentWorldPos = new THREE.Vector3();
+      ship.mesh.getWorldPosition(currentWorldPos);
+
+      if (!ship.lastFramePos) {
+        ship.lastFramePos = currentWorldPos.clone();
+      }
+
+      const frameMovement = currentWorldPos.clone().sub(ship.lastFramePos);
+      const isCinematicWarp = ship.keys["w"] && ship.cinematicMode;
+
+      if (!isCinematicWarp) {
+        evaCamera.position.add(frameMovement);
+      }
+
+      // --- THE HELMET PIVOT ---
+      const waldoHeadPos = waldo.position.clone();
+
+      // The Offset: (X: left/right, Y: up/down, Z: forward/back)
+      // I set Y to 0.4 to go up to his helmet. You can tweak these numbers to get it perfect!
+      const helmetOffset = new THREE.Vector3(0, 0, 0).applyQuaternion(
+        waldo.quaternion,
+      );
+      waldoHeadPos.add(helmetOffset);
+
+      // Tell the dictator to look at the helmet, not the ship!
+      controls.target.copy(waldoHeadPos);
+      controls.update();
+
+      // Save today's position for tomorrow's math
+      ship.lastFramePos.copy(currentWorldPos);
+    }
+  } else {
+    if (ship.lastFramePos) {
+      ship.lastFramePos = null;
+    }
+  }
+
+  // Choose which camera to look through
+  if (waldo && waldo.visible) {
+    renderer.render(scene, evaCamera);
+    controls.update(); // Update mouse math for Waldo mode
+  } else {
+    // --- STABLE CAMERA TRACKING ---
+    // 1. Tell the controller to strictly follow the ship
+    controls.target.copy(ship.mesh.position);
+
+        // 2. Render the frame first
+    renderer.render(scene, camera);
+
+    // 3. Update the controls last
+    controls.update();
+  }
+    
+} // Final closing bracket of animate
 
 // --- NAV COMPUTER: UI SETUP ---
 // Grab the glass layer we just built permanently in the HTML
@@ -1236,6 +1403,8 @@ function animate() {
 // --- NAV COMPUTER & TIME TOGGLE SYSTEM ---
 window.addEventListener("keydown", (e) => {
   const key = e.key.toLowerCase();
+  // Stop the keyboard from rapid-firing when a key is held down!
+  if (e.repeat) return;
 
   // 1. ENGINE CONTROLS
   if (key === "w") ship.keys.w = true;
@@ -1301,6 +1470,7 @@ window.addEventListener("keydown", (e) => {
 
       if (ship && ship.mesh) {
         controls.target.copy(ship.mesh.position);
+        controls.target.y += 20; // Tricks the camera into looking ABOVE the ship!
       }
       controls.maxDistance = 5000;
 
@@ -1318,14 +1488,21 @@ window.addEventListener("keydown", (e) => {
   // Smart Tractor Beam Trigger
   if (key === "b") {
     if (ship.tetherTarget) {
-      // SAFETY BLANKET: If the target has a name, use it. If not, use an empty string so it doesn't crash!
-      const targetName = ship.tetherTarget.name || "";
+      // SAFETY BLANKET: Check both 'name' and 'targetName' to be perfectly sure
+      const targetName =
+        ship.tetherTarget.name || ship.tetherTarget.targetName || "";
 
       console.log("The computer sees the target name as: [" + targetName + "]");
 
-      // Now it is completely safe to check the text
-      if (targetName.includes("Earth") || targetName === "Space Station") {
+      // THE VAULT DOOR: Only allow exact matches to the Space Station
+      // THE VAULT DOOR: Now it only has to look for one exact name!
+      if (targetName === "Earth Station") {
         ship.isDocking = !ship.isDocking;
+        // ...
+      console.log(`[B-KEY PRESSED] Tether Active: ${ship.lockedOrbitTarget ? 'YES' : 'NO'}`);
+      // THE NEW MONITOR
+      console.log(`[WINCH PULLING] Tether Active: ${ship.lockedOrbitTarget ? 'YES' : 'NO'} | isDocking: ${ship.isDocking}`);
+
         console.log(
           "TRACTOR BEAM STATE:",
           ship.isDocking ? "ENGAGED" : "DISENGAGED",
@@ -1335,7 +1512,7 @@ window.addEventListener("keydown", (e) => {
           "SYSTEM ERROR: Tractor beam incompatible with " +
             (targetName || "Unnamed Target"),
         );
-        ship.isDocking = false;
+        ship.isDocking = false; // Force it off if we hit the wrong target
       }
     } else {
       console.log("SYSTEM ERROR: No target locked. Cannot engage beam.");
@@ -1356,6 +1533,20 @@ window.addEventListener("keyup", (e) => {
   if (key === " ") ship.keys.space = false;
   if (key === "i") ship.keys.i = false;
   if (key === "o") ship.keys.o = false;
+  // Add these so the computer doesn't think you are holding them forever!
+  if (key === "1") ship.keys["1"] = false;
+  if (key === "3") ship.keys["3"] = false;
+  if (key === "shift") {
+    ship.keys["shift"] = false;
+    ship.keys["ShiftLeft"] = false;
+    ship.keys["ShiftRight"] = false;
+  }
+
+  // Catch-all just in case your keydown uses the exact Numpad names
+  ship.keys["Numpad1"] = false;
+  ship.keys["Numpad3"] = false;
+  ship.keys["ArrowLeft"] = false;
+  ship.keys["ArrowRight"] = false;
 });
 
 // --- 5. BROWSER RESIZING ---

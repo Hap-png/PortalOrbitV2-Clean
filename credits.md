@@ -19,3 +19,5 @@ Solar System Planet Textures and Models courtesy of NASA / NASA 3D Resources
 "Juno OBJ Transparent" (https://skfb.ly/6QZCV) by mbrennan is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
 
 "Cassini Huygens" (https://skfb.ly/6oPxs) by uperesito is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
+
+"astronaut" (https://skfb.ly/oIosV) by bazylevnik0 is licensed under Creative Commons Attribution-NonCommercial (http://creativecommons.org/licenses/by-nc/4.0/).
