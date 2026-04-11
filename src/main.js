@@ -11,14 +11,18 @@ import { Comet } from "./entities/Comet.js";
 import { GLTFLoader } from "https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
 import { Juno } from "./entities/Juno.js";
 import { Cassini } from "./entities/Cassini.js";
+import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
 
 let backgroundMusic;
 let waldo = null;
-let waldoMixer = null; // This will play the animations
 let evaCamera;
 
 // --- 1. SCENE SETUP ---
 const scene = new THREE.Scene();
+
+// --- HUD Overlay Variables ---
+const keyIndicator = document.getElementById("key-indicator");
+let wWasPressedHUD = false; // Tracks when you release the 'W' key for the fade effect
 
 // --- TACTICAL MAP MEMORY ---
 let isMapMode = false;
@@ -146,7 +150,7 @@ controls.keys = { LEFT: "", UP: "", RIGHT: "", BOTTOM: "" };
 // --- 2. CINEMATIC GLIDE & ZOOM LIMITS ---
 controls.enableDamping = true; // Smooth cinematic glide
 controls.dampingFactor = 0.05;
-controls.minDistance = 0.1; // Prevents zooming inside the hull
+controls.minDistance = 0.01; // CHANGED: Now allows micro-zooming for Waldo
 controls.maxDistance = 50; // Prevents zooming out past the planets
 
 // We need a variable to track the ship's movement frame-by-frame
@@ -221,43 +225,41 @@ scene.add(skyboxMesh);
 const ship = new PlayerShip(camera, renderer.domElement, scene);
 
 // Move the ship out of the Sun and into deep space
-ship.mesh.position.set(100, 0, 0);
+ship.mesh.position.set(200, 0, 0);
 
-// --- LOAD WALDO THE ASTRONAUT ---
+// Make sure GLTFLoader is imported at the top again!
+// import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
 const loader = new GLTFLoader();
-loader.load("assets/models/astronaut.glb", (gltf) => {
+loader.load("assets/models/astronaut_static.glb", (gltf) => {
   waldo = gltf.scene;
 
   waldo.traverse((n) => {
     if (n.isMesh) {
-      // This adds a subtle "space-suit" glow so he isn't pitch black
+      // If his materials look good out of the box, you might not even need this,
+      // but it keeps your emissive glow intact just in case!
       n.material.emissive = new THREE.Color(0x333333);
       n.material.emissiveIntensity = 1.0;
 
-      // Fixes the console warning: .encoding -> .colorSpace
       if (n.material.map) {
         n.material.map.colorSpace = THREE.SRGBColorSpace;
       }
     }
   });
 
-  waldo.scale.set(0.8, 0.8, 0.8);
+  waldo.scale.set(0.01, 0.01, 0.01);
   waldo.visible = false;
   scene.add(waldo);
 
-  if (gltf.animations && gltf.animations.length) {
-    waldoMixer = new THREE.AnimationMixer(waldo);
-    const action = waldoMixer.clipAction(gltf.animations[0]);
-    action.play();
-  }
+  // Notice: No animation mixer code here at all!
 });
 
 // --- CHASE CAMERA SETUP ---
-// Spawn the camera much closer to the new micro-sized ship
+// Update the Main Chase Cam to match your EVA log
 camera.position.set(
   ship.mesh.position.x,
-  ship.mesh.position.y + 0.08, // Pushed down to get level with the hull
-  ship.mesh.position.z + 0.5, // Pushed in close to the engines
+  ship.mesh.position.y + 0.036, // Height from your log
+  ship.mesh.position.z + 0.31, // Distance from your log
 );
 
 controls.target.copy(ship.mesh.position);
@@ -471,16 +473,13 @@ planets.push(jupiter);
 
 // --- CREATE IO ---
 const io = new Planet("Io", 0.9, "assets/textures/io.jpg", 150, 0.15, 1.2);
-io.pivot.rotation.y = 4.5;
+io.startingAngle = 106.7 * (Math.PI / 180); // Real J2000 starting position
 jupiter.orbitGroup.add(io.pivot);
 planets.push(io);
 //io.targetName = "Io";
-// --- Make Io "Latchable" ---
-//io.targetName = "Io";
-//io.tetherDistance = 150; // Nice and close for the volcanic moon
-planets.push(io);
+//io.tetherDistance = 150;
 
-// ---CREATE EUROPA ---
+// --- CREATE EUROPA ---
 const europa = new Planet(
   "Europa",
   0.8,
@@ -491,16 +490,13 @@ const europa = new Planet(
 );
 europa.mesh.material.transparent = false;
 europa.mesh.material.needsUpdate = true;
-europa.pivot.rotation.y = 1.2;
+europa.startingAngle = 175.7 * (Math.PI / 180);
 jupiter.orbitGroup.add(europa.pivot);
 planets.push(europa);
 //europa.targetName = "Europa";
-// --- Make Europa "Latchable" ---
-//europa.targetName = "Europa";
-//europa.tetherDistance = 150; // Perfect for ice-crust inspections
-planets.push(europa);
+//europa.tetherDistance = 150;
 
-// ---CREATE GANYMEDE ---
+// --- CREATE GANYMEDE ---
 const ganymede = new Planet(
   "Ganymede",
   3,
@@ -509,11 +505,11 @@ const ganymede = new Planet(
   0.05,
   5.0,
 );
-ganymede.pivot.rotation.y = 2.8;
+ganymede.startingAngle = 120.4 * (Math.PI / 180);
 jupiter.orbitGroup.add(ganymede.pivot);
+planets.push(ganymede);
 //ganymede.targetName = "Ganymede";
 //ganymede.tetherDistance = 150;
-planets.push(ganymede);
 
 // --- CREATE CALLISTO ---
 const callisto = new Planet(
@@ -524,11 +520,11 @@ const callisto = new Planet(
   0.02,
   0.5,
 );
-//callisto.targetName = "Callisto";
-//callisto.tetherDistance = 150;
-callisto.pivot.rotation.y = 4.0; // Give it a starting position so it isn't lined up with others
+callisto.startingAngle = 84.4 * (Math.PI / 180);
 jupiter.orbitGroup.add(callisto.pivot);
 planets.push(callisto);
+//callisto.targetName = "Callisto";
+//callisto.tetherDistance = 150;
 
 // --- JUNO PROBE ---
 const junoProbe = new Juno(scene, jupiter);
@@ -580,71 +576,69 @@ if (saturn.mesh) {
 }
 saturn.pivot.rotation.y = 0.5;
 //saturn.targetName = "Saturn";
-//saturn.tetherDistance = 400;
+saturn.tetherDistance = 250;
 scene.add(saturn.pivot);
 planets.push(saturn);
 
 // --- CREATE MIMAS ---
 const mimas = new Planet(
   "Mimas",
-  0.5, // Much smaller than Titan
+  0.5,
   "assets/textures/mimas.jpg",
-  190, // <--- Pushed to 190 (Safely outside the 150 ring edge)
-  0.15, // Fastest orbital speed
+  190,
+  0.15,
   0.02,
 );
-mimas.pivot.rotation.y = 1.2; // Staggers the starting position
+mimas.startingAngle = 261.1 * (Math.PI / 180);
 saturn.orbitGroup.add(mimas.pivot);
-//mimas.targetName = "Mimas";
-//mimas.tetherDistance = 15; // Tighter tether for a tiny moon
 planets.push(mimas);
+//mimas.targetName = "Mimas";
+//mimas.tetherDistance = 15;
 
 // --- CREATE ENCELADUS ---
 const enceladus = new Planet(
   "Enceladus",
-  0.6, // Slightly larger than Mimas
+  0.6,
   "assets/textures/enceladus.jpg",
-  240, // <--- Pushed to 240
-  0.12, // Slightly slower than Mimas
+  240,
+  0.12,
   0.02,
 );
-enceladus.pivot.rotation.y = 3.5;
+enceladus.startingAngle = 122.3 * (Math.PI / 180);
 saturn.orbitGroup.add(enceladus.pivot);
+planets.push(enceladus);
 //enceladus.targetName = "Enceladus";
 //enceladus.tetherDistance = 150;
-planets.push(enceladus);
 
 // --- CREATE TETHYS ---
 const tethys = new Planet(
   "Tethys",
-  0.8, // Largest of these three, but still 1/3 the size of Titan
+  0.8,
   "assets/textures/tethys.jpg",
-  310, // <--- Pushed to 310
-  0.09, // Slowest of the three inner moons
+  310,
+  0.09,
   0.02,
 );
-tethys.pivot.rotation.y = 5.1;
+tethys.startingAngle = 4.8 * (Math.PI / 180);
 saturn.orbitGroup.add(tethys.pivot);
+planets.push(tethys);
 //tethys.targetName = "Tethys";
 //tethys.tetherDistance = 150;
-planets.push(tethys);
 
 // --- CREATE TITAN ---
 const titan = new Planet(
   "Titan",
   3.2,
   "assets/textures/saturn_titan.png",
-  800, // <--- Pushed way out to 800 for that deep space feel
+  800,
   0.02,
   0.02,
 );
-titan.pivot.rotation.y = 0.8;
+titan.startingAngle = 182.2 * (Math.PI / 180);
 saturn.orbitGroup.add(titan.pivot);
-
-// --- Make Titan "Latchable" ---
-//titan.targetName = "Titan";
-//titan.tetherDistance = 150; // A bit more room for the hazy giant
 planets.push(titan);
+//titan.targetName = "Titan";
+//titan.tetherDistance = 150;
 
 // --- CASSINI PROBE ---
 let cassiniProbe;
@@ -816,10 +810,6 @@ function animate() {
     if (p.update) p.update(currentSimDays);
   });
 
-  if (waldoMixer) {
-    waldoMixer.update(rawDelta);
-  }
-
   // Check for Waldo Toggle
   if (ship.keys["g"]) {
     if (!ship.gWasPressed) {
@@ -833,19 +823,39 @@ function animate() {
           const worldPos = new THREE.Vector3();
           ship.mesh.getWorldPosition(worldPos);
 
-          // Offset: Right 1.5, Up 1.0, Back 3.0
-          const offset = new THREE.Vector3(0.0, 0.01, 0.1).applyQuaternion(
-            ship.mesh.quaternion,
-          );
-          evaCamera.position.copy(worldPos).add(offset);
+          // 1. ADJUST INITIAL CAMERA POSITION (Where the camera sits)
+          // X: Left/Right, Y: Up/Down, Z: Forward/Back (Tweak Z to start closer!)
+          const cameraOffset = new THREE.Vector3(
+            0.0,
+            0.027,
+            0.29,
+          ).applyQuaternion(ship.mesh.quaternion);
+          evaCamera.position.copy(worldPos).add(cameraOffset);
 
-          controls.target.copy(worldPos);
+          // 2. ADJUST THE ZOOM/ORBIT TARGET (What the camera looks at)
+          // Raise the target up by 0.05 so you zoom into his helmet, not his feet
+          const targetOffset = new THREE.Vector3(
+            0.0,
+            0.05,
+            0.0,
+          ).applyQuaternion(ship.mesh.quaternion);
+          const helmetPos = new THREE.Vector3()
+            .copy(worldPos)
+            .add(targetOffset);
+
+          controls.target.copy(helmetPos);
           controls.update();
         } else {
           // --- OFF SWITCH ---
           controls.object = camera;
           controls.target.copy(ship.mesh.position);
           controls.update();
+
+          if (ship.keys["g"] && !ship.gWasPressed) {
+            // ... your existing code ...
+            console.log("EVA Start Position:", evaCamera.position);
+            console.log("Ship Position:", ship.mesh.position);
+          }
 
           // Safety catch: Un-glue the camera just in case you pressed G while steering
           if (evaCamera.parent === ship.mesh && ship.mesh.parent) {
@@ -1198,7 +1208,7 @@ function animate() {
       ship.mesh.rotateY(Math.PI); // THE ANTIDOTE: Flip 180 back to facing outward!
     }
 
-        // 5. Update the HUD
+    // 5. Update the HUD
     const engineText = document.getElementById("hud-engines");
     if (engineText) {
       engineText.innerText = "TRACTOR BEAM: DOCKING";
@@ -1217,7 +1227,7 @@ function animate() {
   }
   // --- END TRACTOR BEAM ---
 
-    // --- IMPULSE ENGINES (I & O Keys) ---
+  // --- IMPULSE ENGINES (I & O Keys) ---
   if (!ship.isDocking) {
     // 1. The Acceleration (Provides the smooth ease-in)
     const impulseThrust = 0.01 * delta;
@@ -1251,25 +1261,54 @@ function animate() {
   // --- DYNAMIC CHASE CAMERA (HYBRID RIG) ---
   if (ship && ship.mesh) {
     if (!isMapMode) {
-      const deltaMove = new THREE.Vector3().subVectors(
-        ship.mesh.position,
-        previousShipPosition,
-      );
-      camera.position.add(deltaMove);
+      // --- CINEMATIC SNAP-BACK LOGIC ---
+      // 1. Detect the exact moment Cinematic Mode is turned ON
+      if (ship.cinematicMode && !ship.wasCinematicMode) {
+        // Save the camera's exact position relative to the ship's current rotation
+        ship.savedCameraOffset = camera.position
+          .clone()
+          .sub(ship.mesh.position);
+        ship.savedCameraOffset.applyQuaternion(
+          ship.mesh.quaternion.clone().invert(),
+        );
+      }
+      // 2. Detect the exact moment Cinematic Mode is turned OFF
+      else if (!ship.cinematicMode && ship.wasCinematicMode) {
+        // Teleport the camera back to that saved relative position
+        if (ship.savedCameraOffset) {
+          const restoredOffset = ship.savedCameraOffset
+            .clone()
+            .applyQuaternion(ship.mesh.quaternion);
+          camera.position.copy(ship.mesh.position).add(restoredOffset);
+        }
+      }
+      // 3. Update the state tracker for the next frame
+      ship.wasCinematicMode = ship.cinematicMode;
 
-      const prevQuatInv = previousShipQuaternion.clone().invert();
-      const deltaQuat = ship.mesh.quaternion.clone().multiply(prevQuatInv);
+      // --- CINEMATIC MODE CHECK ---
+      if (!ship.cinematicMode) {
+        // ONLY physically move the camera if we are NOT in cinematic mode
+        const deltaMove = new THREE.Vector3().subVectors(
+          ship.mesh.position,
+          previousShipPosition,
+        );
+        camera.position.add(deltaMove);
 
-      const offset = camera.position.clone().sub(ship.mesh.position);
-      offset.applyQuaternion(deltaQuat);
-      camera.position.copy(ship.mesh.position).add(offset);
+        const prevQuatInv = previousShipQuaternion.clone().invert();
+        const deltaQuat = ship.mesh.quaternion.clone().multiply(prevQuatInv);
 
-      // 1. Give the camera a neck brace so it rolls with the ship!
-      camera.up.copy(
-        new THREE.Vector3(0, 1, 0).applyQuaternion(ship.mesh.quaternion),
-      );
+        const offset = camera.position.clone().sub(ship.mesh.position);
+        offset.applyQuaternion(deltaQuat);
+        camera.position.copy(ship.mesh.position).add(offset);
 
-      // 2. The original line that anchors OrbitControls to the ship
+        // Give the camera a neck brace so it rolls with the ship!
+        camera.up.copy(
+          new THREE.Vector3(0, 1, 0).applyQuaternion(ship.mesh.quaternion),
+        );
+      }
+
+      // ALWAYS update the target! This makes the camera track the ship visually
+      // even when the camera itself is parked in space.
       controls.target.copy(ship.mesh.position);
 
       // Let the pilot use the mouse to look around the ship!
@@ -1360,7 +1399,7 @@ function animate() {
 
       // The Offset: (X: left/right, Y: up/down, Z: forward/back)
       // I set Y to 0.4 to go up to his helmet. You can tweak these numbers to get it perfect!
-      const helmetOffset = new THREE.Vector3(0, 0, 0).applyQuaternion(
+      const helmetOffset = new THREE.Vector3(0, 0.03, 0).applyQuaternion(
         waldo.quaternion,
       );
       waldoHeadPos.add(helmetOffset);
@@ -1386,15 +1425,29 @@ function animate() {
     // --- STABLE CAMERA TRACKING ---
     // 1. Tell the controller to strictly follow the ship
     controls.target.copy(ship.mesh.position);
-
-        // 2. Render the frame first
+    // 2. Render the frame first
     renderer.render(scene, camera);
-
     // 3. Update the controls last
     controls.update();
   }
-    
-} // Final closing bracket of animate
+
+  // --- HUD KEYBOARD OVERLAY LOGIC ---
+  if (ship.keys["w"]) {
+    if (!wWasPressedHUD) {
+      keyIndicator.innerHTML = "[ W ] <span class='pulse-red'>>>> HOLDING <<<</span>";
+      keyIndicator.style.transition = "none"; 
+      keyIndicator.style.opacity = "1";
+      wWasPressedHUD = true; 
+    }
+  } else {
+    if (wWasPressedHUD) {
+      keyIndicator.innerHTML = "[ W ]"; 
+      keyIndicator.style.transition = "opacity 1s ease-out"; 
+      keyIndicator.style.opacity = "0"; 
+      wWasPressedHUD = false; 
+    }
+  }
+} // Final closing bracket of animate()
 
 // --- NAV COMPUTER: UI SETUP ---
 // Grab the glass layer we just built permanently in the HTML
@@ -1406,9 +1459,10 @@ window.addEventListener("keydown", (e) => {
   // Stop the keyboard from rapid-firing when a key is held down!
   if (e.repeat) return;
 
-  // 1. ENGINE CONTROLS
+    // 1. ENGINE CONTROLS
   if (key === "w") ship.keys.w = true;
   if (key === "s") ship.keys.s = true;
+  // ... (keep the rest of your keys exactly the same)
   if (key === "a") ship.keys.a = true;
   if (key === "d") ship.keys.d = true;
   if (key === "f") ship.keys.f = true;
@@ -1430,6 +1484,7 @@ window.addEventListener("keydown", (e) => {
 }); // This closes the Hubble listener
 
 // The camera takes the picture, and the loop repeats!
+
 renderer.render(scene, camera);
 //} // <-- This is the closing brace you added earlier
 
@@ -1499,9 +1554,13 @@ window.addEventListener("keydown", (e) => {
       if (targetName === "Earth Station") {
         ship.isDocking = !ship.isDocking;
         // ...
-      console.log(`[B-KEY PRESSED] Tether Active: ${ship.lockedOrbitTarget ? 'YES' : 'NO'}`);
-      // THE NEW MONITOR
-      console.log(`[WINCH PULLING] Tether Active: ${ship.lockedOrbitTarget ? 'YES' : 'NO'} | isDocking: ${ship.isDocking}`);
+        console.log(
+          `[B-KEY PRESSED] Tether Active: ${ship.lockedOrbitTarget ? "YES" : "NO"}`,
+        );
+        // THE NEW MONITOR
+        console.log(
+          `[WINCH PULLING] Tether Active: ${ship.lockedOrbitTarget ? "YES" : "NO"} | isDocking: ${ship.isDocking}`,
+        );
 
         console.log(
           "TRACTOR BEAM STATE:",
@@ -1524,8 +1583,10 @@ window.addEventListener("keydown", (e) => {
 // DON'T FORGET THE KEYUP (To stop the ship from moving forever)
 window.addEventListener("keyup", (e) => {
   const key = e.key.toLowerCase();
+
   if (key === "w") ship.keys.w = false;
   if (key === "s") ship.keys.s = false;
+  // ... (keep the rest of your keys exactly the same)
   if (key === "a") ship.keys.a = false;
   if (key === "d") ship.keys.d = false;
   if (key === "f") ship.keys.f = false;

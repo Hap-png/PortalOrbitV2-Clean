@@ -11,7 +11,7 @@ export class Juno {
     this.isPlanet = true;
 
     // MASSIVE grab radius so she can't outrun the cable during Time Surf!
-    this.tetherDistance = 2000;
+    this.tetherDistance = 200;
 
     // THE PIVOT (Added to the main scene so she doesn't spawn in the Sun!)
     this.pivot = new THREE.Group();

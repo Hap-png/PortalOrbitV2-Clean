@@ -15,8 +15,63 @@
         }
       }
     </script>
+
+<style>
+  /* Flashing red alert for HOLDING states */
+  .pulse-red {
+    color: #ff3333;
+    font-weight: bold;
+    text-shadow: 0 0 8px #ff0000;
+    animation: flash 0.8s infinite;
+  }
+
+  @keyframes flash {
+    0% { opacity: 1; }
+    50% { opacity: 0.2; }
+    100% { opacity: 1; }
+  }
+</style>
+
 </head>
 <body>
+
+<div id="splash-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #000408; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: #00ffff; font-family: monospace; transition: opacity 2s ease-in-out;">
+    <h1 style="font-size: 2.5em; letter-spacing: 5px; margin-bottom: 20px; text-shadow: 0 0 15px #00ffff;">PORTAL ORBIT V2</h1>
+    <p style="font-size: 1.2em; max-width: 600px; line-height: 1.6; color: #00aaff; border-top: 1px dashed #00ffff; border-bottom: 1px dashed #00ffff; padding: 20px 0;">
+        This is a Zen Sandbox simulation.<br><br>
+        There is no score, no damage, and no collision.<br>
+        Fly anywhere, through anything, and simply enjoy the view.
+    </p>
+    <div style="margin-top: 40px; font-size: 0.9em; color: #ffaa00; animation: pulseLoading 1.5s infinite;">> INITIALIZING FLIGHT SYSTEMS...</div>
+</div>
+
+<style>
+    @keyframes pulseLoading {
+        0% { opacity: 0.2; }
+        50% { opacity: 1; }
+        100% { opacity: 0.2; }
+    }
+</style>
+
+<script>
+    // Wait for the main page to load, then start the countdown
+    window.addEventListener('load', () => {
+        // Give the user 3.5 seconds to read the Zen message
+        setTimeout(() => {
+            const splash = document.getElementById('splash-screen');
+            if (splash) {
+                splash.style.opacity = '0'; // Trigger the 2-second CSS fade out
+                
+                // Wait for the 2-second fade to finish, then completely remove it 
+                // so it doesn't block the user from clicking the simulation
+                setTimeout(() => {
+                    splash.style.display = 'none';
+                }, 2000); 
+            }
+        }, 5500); 
+    });
+</script>
+
     <div id="ui-container">
         <h1>PORTAL ORBIT V2</h1>
         <p id="status">Status: Awaiting Main Module...</p>
@@ -46,57 +101,70 @@
 
 <button id="creditsBtn" style="position: absolute; bottom: 20px; left: 20px; background: transparent; color: #00ffff; border: 1px solid #00ffff; padding: 8px 16px; font-family: monospace; cursor: pointer; z-index: 100;">CREDITS</button>
 
-<div id="manualModal" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0, 10, 20, 0.95); border: 1px solid #00ffff; color: #00ffff; padding: 25px; font-family: monospace; z-index: 101; width: 85%; max-width: 650px; box-shadow: 0 0 15px rgba(0, 255, 255, 0.2); max-height: 85vh; overflow-y: auto;">
-    <h2 style="margin-top: 0; text-align: center; border-bottom: 1px dashed #00ffff; padding-bottom: 10px; font-size: 1.3em;">FLIGHT MANUAL</h2>
+<div id="manualModal" style="display: none; position: absolute; top: 100px; bottom: 130px; left: 20px; background: rgba(0, 10, 20, 0.4); border: 1px solid #00ffff; color: #00ffff; font-family: monospace; z-index: 101; max-width: 450px; width: auto; box-shadow: 0 0 15px rgba(0, 255, 255, 0.2); overflow-y: auto; overflow-x: hidden;">
 
-    <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3);">TARGETING MODES:</h3>
-    <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
-        <li>> <span style="color: #00ff00;">Green Target:</span> Intercept using Warp Thrusters (W / S)</li>
-        <li>> <span style="color: #ffaa00;">Orange Target:</span> Intercept by Time Surfing (/ or ] [)</li>
-    </ul>
+    <div style="position: sticky; top: 0; background: rgba(0, 10, 20, 0.6); padding: 20px 25px 15px 25px; border-bottom: 1px dashed #00ffff; z-index: 10; display: flex; justify-content: center; align-items: center;">
+        <h2 style="margin: 0; font-size: 1.3em;">FLIGHT MANUAL</h2>
+        <button id="closeManualBtn" style="position: absolute; right: 20px; background: #00ffff; color: #000; border: none; padding: 6px 12px; font-family: monospace; font-weight: bold; cursor: pointer;">X CLOSE</button>
+    </div>
 
-    <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">FLIGHT CONTROLS:</h3>
-    <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
-        <li>> <strong>W S</strong> - Warp Thrusters Forward / Reverse (W also breaks Hover!)</li>
-        <li>> <strong>I O</strong> - Impulse Thrusters Forward / Reverse</li>
-        <li>> <strong>A D</strong> - Slide Left / Right</li>
-        <li>> <strong>F C</strong> - Slide Up / Down</li>
-        <li>> <strong>SPACE</strong> - Inertial Brakes</li>
-        <li>> <strong>Arrows</strong> - Steer Pitch & Yaw (Standard Flight)</li>
-    </ul>
+    <div style="padding: 15px 25px 30px 25px;">
 
-    <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">ADVANCED ORBITING <span style="color: #ff5555; font-size: 0.8em;">[NEW]</span>:</h3>
-    <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
-        <li>> <strong>Hold Shift</strong> - Target Lock Override (Keeps tether while turning away)</li>
-        <li>> <strong>V</strong> - Engage Cinematic Drone Hover at current distance</li>
-        <li>> <strong>Arrows (While Hovering)</strong> - Strafe around the target's orbit ring</li>
-    </ul>
+        <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3);">TARGETING MODES:</h3>
+        <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
+            <li>> <span style="color: #00ff00;">Green Target:</span> Intercept using Warp Thrusters (W / S)</li>
+            <li>> <span style="color: #ffaa00;">Orange Target:</span> Intercept by Time Surfing (/ or ] [)</li>
+        </ul>
 
-    <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">TIME SURFING:</h3>
-    <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
-        <li>> <strong>\</strong> - 1/4 Speed Time Forward <span style="color: #ff5555; font-size: 0.8em;">[NEW]</span></li>
-        <li>> <strong>/</strong> - 1/2 Speed Time Forward</li>
-        <li>> <strong>] [</strong> - 1 to 9 Speed Time Forward / Reverse</li>
-        <li>> <strong>N</strong> - Return to Real Time</li>
-    </ul>
+        <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">FLIGHT CONTROLS:</h3>
+        <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
+            <li>> <strong>W S</strong> - Cinematic Warp: Hold W until stopped for distance. Tap for short bursts.</li>
+            <li>> <strong>I O</strong> - Impulse Thrusters Forward / Reverse</li>
+            <li>> <strong>A D</strong> - Slide Left / Right</li>
+            <li>> <strong>F C</strong> - Slide Up / Down</li>
+            <li>> <strong>SPACE</strong> - Inertial Brakes</li>
+            <li>> <strong>Arrows</strong> - Steer Pitch & Yaw (Standard Flight)</li>
+        </ul>
 
-    <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">SYSTEMS:</h3>
-    <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
-        <li>> <strong>T</strong> - Toggle Nav Computer</li>
-        <li>> <strong>X</strong> - Swap Transport / Shuttle</li>
-        <li>> <strong>B</strong> - Docking Tractor Beam at Earth Space Station</li>
-        <li>> <strong>M</strong> - 3D Tactical Map Viewing</li>
-        <li>> <strong>Z</strong> - Target Looking Glass</li>
-        <li>> <strong>L-Shift + Scroll</strong> - Resize Looking Glass Window</li>
-    </ul>
+        <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">ADVANCED ORBITING <span style="color: #ff5555; font-size: 0.8em;">[NEW]</span>:</h3>
+        <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
+            <li>> <strong>Hold Shift</strong> - Target Lock Override (Keeps tether while turning away)</li>
+            <li>> <strong>V</strong> - Engage Cinematic Drone Hover at current distance</li>
+            <li>> <strong>Arrows (While Hovering)</strong> - Strafe around the target's orbit ring</li>
+        </ul>
 
-    <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">CAMERA:</h3>
-    <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
-        <li>> <strong>Left Click + Drag</strong> - Orbit Camera</li>
-        <li>> <strong>Scroll Wheel</strong> - Zoom In / Out</li>
-    </ul>
+        <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">TIME SURFING:</h3>
+        <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
+            <li>> <strong>\</strong> - 1/4 Speed Time Forward <span style="color: #ff5555; font-size: 0.8em;">[NEW]</span></li>
+            <li>> <strong>/</strong> - 1/2 Speed Time Forward</li>
+            <li>> <strong>] [</strong> - 1 to 9 Speed Time Forward / Reverse</li>
+            <li>> <strong>N</strong> - Return to Real Time</li>
+        </ul>
 
-    <button id="closeManualBtn" style="display: block; margin: 25px auto 0; background: #00ffff; color: #000; border: none; padding: 8px 16px; font-family: monospace; font-weight: bold; cursor: pointer;">CLOSE MANUAL</button>
+        <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">SYSTEMS:</h3>
+        <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
+            <li>> <strong>T</strong> - Toggle Nav Computer</li>
+            <li>> <strong>X</strong> - Swap Transport / Shuttle</li>
+            <li>> <strong>B</strong> - Docking Tractor Beam at Earth Space Station</li>
+            <li>> <strong>M</strong> - 3D Tactical Map Viewing</li>
+            <li>> <strong>Z</strong> - Target Looking Glass</li>
+            <li>> <strong>L-Shift + Scroll</strong> - Resize Looking Glass Window</li>
+        </ul>
+
+        <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">CAMERA:</h3>
+        <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
+            <li>> <strong>Left Click + Drag</strong> - Orbit Camera</li>
+            <li>> <strong>Scroll Wheel</strong> - Zoom In / Out</li>
+            <li>> <strong>R</strong> - Cinematic Stay Camera Mode (Toggle On/Off) <span style="color: #ff5555; font-size: 0.8em;">[NEW]</span></li>
+        </ul>
+
+        <h3 style="color: #ffaa00; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(255, 170, 0, 0.3); margin-top: 20px;">VIDEO TUTORIALS <span style="color: #ff5555; font-size: 0.8em;">[NEW]</span>:</h3>
+        <ul id="video-toc-list" style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
+            <li class="video-link" style="cursor: pointer; transition: color 0.2s; color: #00ffff;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#00ffff'">> Basic Flight & Impulse Engines</li>
+            <li class="video-link" style="cursor: pointer; transition: color 0.2s; color: #00ffff;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#00ffff'">> Advanced Orbiting & Cinematic Hover</li>
+        </ul>
+
+    </div>
 </div>
 
 <div id="creditsModal" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0, 10, 20, 0.95); border: 1px solid #00ffff; color: #00ffff; padding: 25px; font-family: monospace; z-index: 101; width: 80%; max-width: 650px; box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);">
@@ -114,6 +182,7 @@
         <li style="margin-bottom: 10px;">> <strong>"astronaut"</strong> by bazylevnik0 (CC BY 4.0)</li>
     </ul>
     <button id="closeCreditsBtn" style="display: block; margin: 20px auto 0; background: #00ffff; color: #000; border: none; padding: 8px 16px; font-family: monospace; font-weight: bold; cursor: pointer;">CLOSE TRANSMISSION</button>
+
 </div>
 <script>
     // Manual Toggle Logic
@@ -168,5 +237,140 @@
     });
     
 </script>
+
+<div id="telemetry-hud" style="position: absolute; bottom: 140px; right: 20px; display: flex; flex-direction: column-reverse; gap: 8px; pointer-events: none; z-index: 100;"></div>
+
+<style>
+.telemetry-toast {
+    background: rgba(0, 15, 20, 0.85);
+    border: 1px solid #00ffff;
+    border-left: 4px solid #00ffff;
+    color: #00ffff;
+    font-family: monospace;
+    padding: 8px 12px;
+    font-size: 14px;
+    text-shadow: 0 0 5px #00ffff;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+    opacity: 1;
+    transition: opacity 0.5s ease-out;
+}
+</style>
+
+<script>
+const telemetryHud = document.getElementById('telemetry-hud');
+
+// Map every key to its specific Portal Orbit command
+const keyMap = {
+    'w': 'WARP FORWARD', 's': 'WARP REVERSE',
+    'i': 'IMPULSE FORWARD', 'o': 'IMPULSE REVERSE',
+    'a': 'SLIDE LEFT', 'd': 'SLIDE RIGHT',
+    'f': 'SLIDE UP', 'c': 'SLIDE DOWN',
+    ' ': 'INERTIAL BRAKES',
+    'v': 'CINEMATIC HOVER',
+    'r': 'STAY CAMERA (TOGGLE)',
+    't': 'NAV COMPUTER',
+    'z': 'TACTICAL OPTICS',
+    'x': 'SWAP SHIP',
+    'b': 'TRACTOR BEAM',
+    'm': 'TACTICAL MAP',
+    'shift': 'LOCK OVERRIDE',
+    'arrowup': 'PITCH UP',
+    'arrowdown': 'PITCH DOWN',
+    'arrowleft': 'YAW LEFT',
+    'arrowright': 'YAW RIGHT',
+    '\\': 'TIME: 1/4 SPEED',
+    '/': 'TIME: 1/2 SPEED',
+    ']': 'TIME: ACCEL',
+    '[': 'TIME: DECEL',
+    'n': 'REAL TIME'
+};
+
+// Keep track of keys currently held down
+const activeKeys = new Set();
+let warpToast = null; // Memory for our sticky W key
+
+window.addEventListener('keydown', (e) => {
+    let key = e.key.toLowerCase();
+    if (key === ' ') key = ' '; 
+    
+    // --- NATIVE 'W' HOLD LOGIC ---
+    if (key === 'w') {
+        if (!activeKeys.has('w')) {
+            // FIRST PRESS: Create a native toast with your exact styling!
+            activeKeys.add('w');
+            warpToast = document.createElement('div');
+            warpToast.className = 'telemetry-toast';
+            
+            // We put the pulse-red HOLDING text right inside the native toast
+            warpToast.innerHTML = '> [ W ] WARP FORWARD <span id="w-hold-text" class="pulse-red" style="display: none; margin-left: 10px;">HOLDING</span>';
+
+            telemetryHud.appendChild(warpToast);
+            
+            // Keep your 5-item limit clean
+            if (telemetryHud.children.length > 5) {
+                telemetryHud.removeChild(telemetryHud.firstChild);
+            }
+        } else if (e.repeat && warpToast) {
+            // HOLDING: Unhide the red text
+            const holdText = warpToast.querySelector('#w-hold-text');
+            if (holdText) holdText.style.display = "inline-block";
+        }
+        return; // Stop here so it doesn't trigger the auto-deleting toast below
+    }
+
+    // --- YOUR ORIGINAL TOAST LOGIC ---
+    if (activeKeys.has(key)) return;
+    
+    if (keyMap[key]) {
+        activeKeys.add(key);
+        
+        let displayKey = e.key.toUpperCase();
+        if (key === ' ') displayKey = 'SPACE';
+        if (key === 'shift') displayKey = 'SHIFT';
+        if (key.includes('arrow')) displayKey = key.replace('arrow', '').toUpperCase() + ' ARROW';
+
+        showTelemetry(`[ ${displayKey} ] ${keyMap[key]}`);
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    let key = e.key.toLowerCase();
+    activeKeys.delete(key);
+
+    // --- NATIVE 'W' RELEASE LOGIC ---
+    if (key === 'w' && warpToast) {
+        // 1. Instantly kill the red text
+        const holdText = warpToast.querySelector('#w-hold-text');
+        if (holdText) holdText.style.display = "none";
+
+        // 2. Trigger your exact native fade-out transition
+        let toastToRemove = warpToast; // Lock it into memory
+        warpToast = null; // Reset the main variable
+
+        setTimeout(() => {
+            toastToRemove.style.opacity = '0';
+            setTimeout(() => toastToRemove.remove(), 500); 
+        }, 1000); // Fades away 1 second after you let go!
+    }
+});
+
+function showTelemetry(message) {
+    const toast = document.createElement('div');
+    toast.className = 'telemetry-toast';
+    toast.textContent = '> ' + message;
+    
+    telemetryHud.appendChild(toast);
+
+    if (telemetryHud.children.length > 5) {
+        telemetryHud.removeChild(telemetryHud.firstChild);
+    }
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 500); 
+    }, 2500);
+}
+</script>
+
 </body>
 </html>
