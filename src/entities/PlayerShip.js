@@ -251,44 +251,51 @@ export class PlayerShip {
       
       let baseLook = new THREE.Quaternion().setFromRotationMatrix(this.dummyMatrix);
 
-      // --- MANUAL SPIN LOGIC RESTORED ---
+      // --- V-KEY MINI-MOMENTUM ENGINE (RAW DEBUG VERSION) ---
       const isShiftHeld =
         this.keys["shift"] || this.keys["ShiftLeft"] || this.keys["ShiftRight"];
-      const isSpinning =
-        isShiftHeld && (this.keys["arrowleft"] || this.keys["arrowright"]);
 
-      // Initialize offset if it doesn't exist
-      if (!this.hoverRotationOffset) {
-        this.hoverRotationOffset = new THREE.Quaternion();
+      // ALARM 1: Does the computer even know Shift is being pressed here?
+      if (isShiftHeld) {
+          console.log(">>> ALARM: SHIFT DETECTED IN V-MODE! <<<");
       }
 
-      if (isSpinning) {
-        // 1. Physically spin the ship using the Arrow Keys while Shift is held!
-        const turnSpeed = 0.02;
-        if (this.keys["arrowleft"]) this.mesh.rotateY(turnSpeed);
-        if (this.keys["arrowright"]) this.mesh.rotateY(-turnSpeed);
+      // Initialize our isolated hover variables if they don't exist
+      if (!this.hoverRotationOffset) this.hoverRotationOffset = new THREE.Quaternion();
+      if (!this.hoverSpinVelocity) this.hoverSpinVelocity = 0;
 
-        // 2. TEACH THE AUTOPILOT: Save this new angle into memory
-        this.hoverRotationOffset = this.mesh.quaternion
-          .clone()
-          .multiply(baseLook.clone().invert());
-          
-        this.targetQuaternion.copy(this.mesh.quaternion);
-      } else {
-        // 3. NORMAL TRACKING: Apply offset to the base look direction
-        this.targetQuaternion.copy(this.hoverRotationOffset).multiply(baseLook);
-        
-        let angleToTarget = this.mesh.quaternion.angleTo(this.targetQuaternion);
-
-        // 2.0 radians is about 114 degrees. If the target suddenly flips behind us, it's gimbal lock.
-        if (angleToTarget > 2.0) {
-          // Trigger the slow, smooth cinematic roll ONLY for the polar flip
-          let stepSize = 0.005 + 0.02 * Math.sin(angleToTarget);
-          this.mesh.quaternion.rotateTowards(this.targetQuaternion, stepSize);
-        } else {
-          // Normal flight tracking!
-          this.mesh.quaternion.slerp(this.targetQuaternion, 0.03);
+      if (isShiftHeld) {
+        // ALARM 2: Are the arrow keys registering?
+        if (this.keys["arrowleft"]) {
+            this.hoverSpinVelocity += 0.002;
+            console.log(">>> ALARM: TURNING LEFT! Velocity:", this.hoverSpinVelocity);
         }
+        if (this.keys["arrowright"]) {
+            this.hoverSpinVelocity -= 0.002;
+            console.log(">>> ALARM: TURNING RIGHT! Velocity:", this.hoverSpinVelocity);
+        }
+      }
+
+      // Apply friction
+      this.hoverSpinVelocity *= 0.90;
+
+      // Apply spin to the invisible target
+      if (Math.abs(this.hoverSpinVelocity) > 0.0001) {
+        const spinQuat = new THREE.Quaternion();
+        spinQuat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.hoverSpinVelocity);
+        this.hoverRotationOffset.multiply(spinQuat).normalize();
+      }
+
+      // NORMAL TRACKING
+      this.targetQuaternion.copy(this.hoverRotationOffset).multiply(baseLook).normalize();
+      
+      let angleToTarget = this.mesh.quaternion.angleTo(this.targetQuaternion);
+
+      if (angleToTarget > 2.0) {
+        let stepSize = 0.005 + 0.02 * Math.sin(angleToTarget);
+        this.mesh.quaternion.rotateTowards(this.targetQuaternion, stepSize);
+      } else {
+        this.mesh.quaternion.slerp(this.targetQuaternion, 0.05).normalize();
       }
 
       // Reinforce the vertical lock
@@ -442,32 +449,42 @@ export class PlayerShip {
       // ADDED .normalize() to clean the math!
       this.targetQuaternion.copy(this.hoverRotationOffset).multiply(baseLook).normalize();
 
-      // --- THE "OLD WAY" RESTORED (SHIFT + ARROW KEYS) ---
+      // --- V-KEY SMOOTH MOMENTUM ENGINE ---
       const isShiftHeld = this.keys["shift"] || this.keys["ShiftLeft"] || this.keys["ShiftRight"];
-      const isSpinning = isShiftHeld && (left || right);
 
-      if (isSpinning) {
-        // 1. Physically spin the ship using the Arrow Keys while Shift is held!
-        const turnSpeed = 0.02;
-        if (left) this.mesh.rotateY(turnSpeed);
-        if (right) this.mesh.rotateY(-turnSpeed);
+      // Initialize our isolated hover variables if they don't exist
+      if (!this.hoverRotationOffset) this.hoverRotationOffset = new THREE.Quaternion();
+      if (!this.hoverSpinVelocity) this.hoverSpinVelocity = 0;
 
-        // 2. TEACH THE AUTOPILOT: Save this new angle into memory
-        // ADDED .normalize() to clean the math!
-        this.hoverRotationOffset = this.mesh.quaternion
-          .clone()
-          .multiply(baseLook.clone().invert())
-          .normalize(); 
-          
-        this.targetQuaternion.copy(this.mesh.quaternion).normalize();
-      } else {
-        // 3. NORMAL ORBIT: Autopilot keeps the nose locked
-        this.mesh.quaternion.slerp(this.targetQuaternion, 0.05);
-        
-        // ADDED .normalize() here as a final safety net!
-        this.mesh.quaternion.normalize(); 
+      if (isShiftHeld) {
+        // 1. Build momentum by turning the invisible steering wheel
+        if (this.keys["arrowleft"] || this.keys["ArrowLeft"]) this.hoverSpinVelocity += 0.002;
+        if (this.keys["arrowright"] || this.keys["ArrowRight"]) this.hoverSpinVelocity -= 0.002;
       }
-    }
+
+      // 2. Apply friction so the steering wheel smoothly coasts to a stop
+      this.hoverSpinVelocity *= 0.90;
+
+      // 3. APPLY TO THE OFFSET, NOT THE HULL
+      if (Math.abs(this.hoverSpinVelocity) > 0.0001) {
+        const spinQuat = new THREE.Quaternion();
+        spinQuat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.hoverSpinVelocity);
+        this.hoverRotationOffset.multiply(spinQuat).normalize();
+      }
+
+      // 4. NORMAL TRACKING (Runs 100% of the time, no snapping!)
+      this.targetQuaternion.copy(this.hoverRotationOffset).multiply(baseLook).normalize();
+      
+      let angleToTarget = this.mesh.quaternion.angleTo(this.targetQuaternion);
+
+      // Gimbal lock protector
+      if (angleToTarget > 2.0) {
+        let stepSize = 0.005 + 0.02 * Math.sin(angleToTarget);
+        this.mesh.quaternion.rotateTowards(this.targetQuaternion, stepSize);
+      } else {
+        // The autopilot gracefully chases the invisible steering wheel!
+        this.mesh.quaternion.slerp(this.targetQuaternion, 0.05).normalize();
+      }}
 
     // --- ROTATION (True 6DOF Starfighter Flight) ---
     if (!this.isDocking && !this.isOrbiting) {

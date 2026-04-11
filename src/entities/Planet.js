@@ -66,7 +66,7 @@ export class Planet {
     fallbackOrbitSpeed,
     fallbackRotationSpeed,
     startingAngle = 0,
-    tetherDistance = 150, // <--- 1. Add your 150km minimum floor here!
+    tetherDistance = 250, // <--- 1. Add your 150km minimum floor here!
   ) {
     this.name = name;
     this.startingAngle = startingAngle;

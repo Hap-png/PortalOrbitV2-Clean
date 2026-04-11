@@ -1431,22 +1431,10 @@ function animate() {
     controls.update();
   }
 
-  // --- HUD KEYBOARD OVERLAY LOGIC ---
-  if (ship.keys["w"]) {
-    if (!wWasPressedHUD) {
-      keyIndicator.innerHTML = "[ W ] <span class='pulse-red'>>>> HOLDING <<<</span>";
-      keyIndicator.style.transition = "none"; 
-      keyIndicator.style.opacity = "1";
-      wWasPressedHUD = true; 
-    }
-  } else {
-    if (wWasPressedHUD) {
-      keyIndicator.innerHTML = "[ W ]"; 
-      keyIndicator.style.transition = "opacity 1s ease-out"; 
-      keyIndicator.style.opacity = "0"; 
-      wWasPressedHUD = false; 
-    }
-  }
+  // --- HUD KEYBOARD OVERLAY LOGIC (RETIRED) ---
+// This old logic was crashing the loop because keyIndicator no longer exists.
+// The new Telemetry HUD is now handled safely in index.html!
+
 } // Final closing bracket of animate()
 
 // --- NAV COMPUTER: UI SETUP ---
@@ -1574,13 +1562,13 @@ window.addEventListener("keydown", (e) => {
         ship.isDocking = false; // Force it off if we hit the wrong target
       }
     } else {
-      console.log("SYSTEM ERROR: No target locked. Cannot engage beam.");
-      ship.isDocking = false;
-    }
-  }
-}); // THIS is the only one that should have a );
+        console.log("SYSTEM ERROR: No target locked. Cannot engage beam.");
+        ship.isDocking = false;
+      } // <-- Closes the 'else'
+    } // <-- Closes the 'if (key === "b")'
+}); // <-- THIS CLOSES THE KEYDOWN LISTENER PROPERLY!
 
-// DON'T FORGET THE KEYUP (To stop the ship from moving forever)
+// --- THE KEYUP LISTENER (NOW SAFELY OUTSIDE) ---
 window.addEventListener("keyup", (e) => {
   const key = e.key.toLowerCase();
 
@@ -1609,7 +1597,6 @@ window.addEventListener("keyup", (e) => {
   ship.keys["ArrowLeft"] = false;
   ship.keys["ArrowRight"] = false;
 });
-
 // --- 5. BROWSER RESIZING ---
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;

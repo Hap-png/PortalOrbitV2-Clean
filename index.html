@@ -257,9 +257,10 @@
 </style>
 
 <script>
+// --- PORTAL ORBIT TELEMETRY SCRIPT ---
 const telemetryHud = document.getElementById('telemetry-hud');
 
-// Map every key to its specific Portal Orbit command
+// MAP EVERY KEY TO ITS SPECIFIC PORTAL ORBIT COMMAND
 const keyMap = {
     'w': 'WARP FORWARD', 's': 'WARP REVERSE',
     'i': 'IMPULSE FORWARD', 'o': 'IMPULSE REVERSE',
@@ -285,9 +286,25 @@ const keyMap = {
     'n': 'REAL TIME'
 };
 
-// Keep track of keys currently held down
+// KEEP TRACK OF KEYS CURRENTLY HELD DOWN
 const activeKeys = new Set();
-let warpToast = null; // Memory for our sticky W key
+
+// MEMORY VARIABLES FOR OUR PERSISTENT HUD ELEMENTS
+let warpToast = null; 
+let shiftToast = null; // <-- NEW: Memory for the Shift key
+
+let hoverState = false;
+let hoverToast = null;
+
+let tractorState = false;
+let tractorToast = null;
+
+// HELPER FUNCTION: KEEPS HUD CLEAN AT 5 ITEMS MAX
+function limitHudItems() {
+    if (telemetryHud.children.length > 10) {
+        telemetryHud.removeChild(telemetryHud.firstChild);
+    }
+}
 
 window.addEventListener('keydown', (e) => {
     let key = e.key.toLowerCase();
@@ -296,37 +313,90 @@ window.addEventListener('keydown', (e) => {
     // --- NATIVE 'W' HOLD LOGIC ---
     if (key === 'w') {
         if (!activeKeys.has('w')) {
-            // FIRST PRESS: Create a native toast with your exact styling!
             activeKeys.add('w');
             warpToast = document.createElement('div');
             warpToast.className = 'telemetry-toast';
-            
-            // We put the pulse-red HOLDING text right inside the native toast
             warpToast.innerHTML = '> [ W ] WARP FORWARD <span id="w-hold-text" class="pulse-red" style="display: none; margin-left: 10px;">HOLDING</span>';
-
             telemetryHud.appendChild(warpToast);
-            
-            // Keep your 5-item limit clean
-            if (telemetryHud.children.length > 5) {
-                telemetryHud.removeChild(telemetryHud.firstChild);
-            }
+            limitHudItems();
         } else if (e.repeat && warpToast) {
-            // HOLDING: Unhide the red text
             const holdText = warpToast.querySelector('#w-hold-text');
             if (holdText) holdText.style.display = "inline-block";
         }
-        return; // Stop here so it doesn't trigger the auto-deleting toast below
+        return; 
     }
 
-    // --- YOUR ORIGINAL TOAST LOGIC ---
+    // --- NATIVE 'SHIFT' HOLD LOGIC ---
+    if (key === 'shift') {
+        if (!activeKeys.has('shift')) {
+            activeKeys.add('shift');
+            shiftToast = document.createElement('div');
+            shiftToast.className = 'telemetry-toast';
+            shiftToast.innerHTML = '> [ SHIFT ] LOCK OVERRIDE <span id="shift-hold-text" class="pulse-red" style="margin-left: 10px;">HOLDING</span>';
+            telemetryHud.appendChild(shiftToast);
+            limitHudItems();
+        }
+        return;
+    }
+
+    // FROM HERE DOWN, WE IGNORE OS KEY-REPEATS
     if (activeKeys.has(key)) return;
     
+    // --- 'V' CINEMATIC HOVER TOGGLE LOGIC ---
+    if (key === 'v') {
+        activeKeys.add('v');
+        hoverState = !hoverState; 
+        
+        if (hoverState) {
+            hoverToast = document.createElement('div');
+            hoverToast.className = 'telemetry-toast';
+            hoverToast.innerHTML = '> [ V ] CINEMATIC HOVER <span style="color: #00ffff; margin-left: 10px;">ON</span>';
+            telemetryHud.appendChild(hoverToast);
+            limitHudItems();
+        } else {
+            if (hoverToast) {
+                hoverToast.innerHTML = '> [ V ] CINEMATIC HOVER <span style="color: #aaaaaa; margin-left: 10px;">OFF</span>';
+                let toastToRemove = hoverToast;
+                hoverToast = null; 
+                setTimeout(() => {
+                    toastToRemove.style.opacity = '0';
+                    setTimeout(() => toastToRemove.remove(), 500); 
+                }, 1000);
+            }
+        }
+        return;
+    }
+
+    // --- 'B' TRACTOR BEAM TOGGLE LOGIC ---
+    if (key === 'b') {
+        activeKeys.add('b');
+        tractorState = !tractorState; 
+        
+        if (tractorState) {
+            tractorToast = document.createElement('div');
+            tractorToast.className = 'telemetry-toast';
+            tractorToast.innerHTML = '> [ B ] TRACTOR BEAM <span style="color: #00ffff; margin-left: 10px;">ON</span>';
+            telemetryHud.appendChild(tractorToast);
+            limitHudItems();
+        } else {
+            if (tractorToast) {
+                tractorToast.innerHTML = '> [ B ] TRACTOR BEAM <span style="color: #aaaaaa; margin-left: 10px;">OFF</span>';
+                let toastToRemove = tractorToast;
+                tractorToast = null; 
+                setTimeout(() => {
+                    toastToRemove.style.opacity = '0';
+                    setTimeout(() => toastToRemove.remove(), 500); 
+                }, 1000);
+            }
+        }
+        return;
+    }
+
+    // --- STANDARD TOAST LOGIC FOR ALL OTHER KEYS ---
     if (keyMap[key]) {
         activeKeys.add(key);
-        
         let displayKey = e.key.toUpperCase();
         if (key === ' ') displayKey = 'SPACE';
-        if (key === 'shift') displayKey = 'SHIFT';
         if (key.includes('arrow')) displayKey = key.replace('arrow', '').toUpperCase() + ' ARROW';
 
         showTelemetry(`[ ${displayKey} ] ${keyMap[key]}`);
@@ -339,18 +409,26 @@ window.addEventListener('keyup', (e) => {
 
     // --- NATIVE 'W' RELEASE LOGIC ---
     if (key === 'w' && warpToast) {
-        // 1. Instantly kill the red text
         const holdText = warpToast.querySelector('#w-hold-text');
         if (holdText) holdText.style.display = "none";
-
-        // 2. Trigger your exact native fade-out transition
-        let toastToRemove = warpToast; // Lock it into memory
-        warpToast = null; // Reset the main variable
-
+        let toastToRemove = warpToast; 
+        warpToast = null; 
         setTimeout(() => {
             toastToRemove.style.opacity = '0';
             setTimeout(() => toastToRemove.remove(), 500); 
-        }, 1000); // Fades away 1 second after you let go!
+        }, 1000);
+    }
+
+    // --- NATIVE 'SHIFT' RELEASE LOGIC ---
+    if (key === 'shift' && shiftToast) {
+        const holdText = shiftToast.querySelector('#shift-hold-text');
+        if (holdText) holdText.style.display = "none";
+        let toastToRemove = shiftToast; 
+        shiftToast = null; 
+        setTimeout(() => {
+            toastToRemove.style.opacity = '0';
+            setTimeout(() => toastToRemove.remove(), 500); 
+        }, 1000);
     }
 });
 
@@ -360,10 +438,7 @@ function showTelemetry(message) {
     toast.textContent = '> ' + message;
     
     telemetryHud.appendChild(toast);
-
-    if (telemetryHud.children.length > 5) {
-        telemetryHud.removeChild(telemetryHud.firstChild);
-    }
+    limitHudItems();
 
     setTimeout(() => {
         toast.style.opacity = '0';
