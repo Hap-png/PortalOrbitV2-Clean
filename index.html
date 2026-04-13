@@ -154,6 +154,15 @@
             <li>> <strong>Z</strong> - Tactical Map Panning</li>
         </ul>
 
+            <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">VIDEO ARCHIVES:</h3>
+        <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
+            <li>> <a href="#" onclick="playVideo('basic_warping_to_jupiter.mp4'); return false;" style="color: #00ffff; text-decoration: none;">Basic Warping to Jupiter</a></li>
+            <li>> <a href="#" onclick="playVideo('hubble_repair_shuttle.mp4'); return false;" style="color: #00ffff; text-decoration: none;">Hubble Repair Shuttle</a></li>
+            <li>> <a href="#" onclick="playVideo('juno_mission_time_surfing.mp4'); return false;" style="color: #00ffff; text-decoration: none;">Juno Mission Time Surfing</a></li>
+            <li>> <a href="#" onclick="playVideo('tactical_map_time_surfing.mp4'); return false;" style="color: #00ffff; text-decoration: none;">Tactical Map Time Surfing</a></li>
+            <li>> <a href="#" onclick="playVideo('tactical_map_zoom.mp4'); return false;" style="color: #00ffff; text-decoration: none;">Tactical Map Zoom</a></li>
+        </ul>
+
     </div>
 </div>
 
@@ -172,6 +181,8 @@
         <li style="margin-bottom: 10px;">> <strong>"astronaut"</strong> by bazylevnik0 (CC BY 4.0)</li>
     </ul>
     <button id="closeCreditsBtn" style="display: block; margin: 20px auto 0; background: #00ffff; color: #000; border: none; padding: 8px 16px; font-family: monospace; font-weight: bold; cursor: pointer;">CLOSE TRANSMISSION</button>
+
+    
 
 </div>
 <script>
@@ -210,6 +221,10 @@
     transition: opacity 0.5s ease-out;
 }
 </style>
+
+<div id="video-frame" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10000; background: #000; box-shadow: 0 0 20px rgba(0,0,0,0.8);">
+    <video id="simple-video" width="720" height="486" controls></video>
+</div>
 
 <script>
 // --- PORTAL ORBIT TELEMETRY SCRIPT ---
@@ -444,6 +459,32 @@ function showTelemetry(message) {
         setTimeout(() => toast.remove(), 500); 
     }, 2500);
 }
+
+// --- VIDEO ARCHIVE LOGIC ---
+const videoFrame = document.getElementById('video-frame');
+const simpleVideo = document.getElementById('simple-video');
+
+// 1. The Trigger: Called when you click a link in the manual
+function playVideo(filename) {
+    // Load the correct file from your folder
+    simpleVideo.src = `assets/videos/${filename}`;
+    
+    // Reveal the hidden frame (it will pop up right where we anchored it)
+    videoFrame.style.display = 'block'; 
+    
+    // Start playback immediately
+    simpleVideo.play();
+}
+
+// 2. The Auto-Close Protocol: Listens for the exact end of the file
+simpleVideo.addEventListener('ended', () => {
+    // Instantly hide the frame
+    videoFrame.style.display = 'none';
+    
+    // Clear the video source so it doesn't drain memory in the background
+    simpleVideo.src = ""; 
+});
+
 </script>
 
 </body>
