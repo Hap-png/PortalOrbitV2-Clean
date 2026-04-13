@@ -53,74 +53,6 @@ scene.add(evaCamera);
 
 evaCamera.position.set(0, 100, 500);
 
-// ==========================================
-// --- TACTICAL OPTICS MASTER SETUP (16:9 CINEMATIC) ---
-// ==========================================
-
-// 1. The Cinematic Lens (Aspect ratio updated to 16 / 9)
-const opticsCamera = new THREE.PerspectiveCamera(5, 16 / 9, 0.1, 50000);
-
-// 2. The Video Screen (No more border-radius clipping)
-const opticsCanvas = document.createElement("canvas");
-opticsCanvas.style.width = "100%";
-opticsCanvas.style.height = "100%";
-opticsCanvas.style.position = "absolute";
-opticsCanvas.style.top = "0";
-opticsCanvas.style.left = "0";
-opticsCanvas.style.zIndex = "-1";
-document.getElementById("tactical-optics").appendChild(opticsCanvas);
-
-// 3. The Optics Renderer (Defaulting to 320x180)
-const opticsRenderer = new THREE.WebGLRenderer({
-  canvas: opticsCanvas,
-  antialias: true,
-  alpha: true,
-});
-opticsRenderer.setSize(320, 180);
-opticsRenderer.setClearColor(0x000000, 0);
-
-// 4. Math Helpers
-const opticsRaycaster = new THREE.Raycaster();
-const opticsMouseNDC = new THREE.Vector2();
-const eclipticPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-const opticsTarget = new THREE.Vector3();
-
-// 5. Optics Zoom & Resize Controls
-const opticsLensUI = document.getElementById("tactical-optics");
-let currentLensWidth = 320; // We now track width, and math handles the height!
-
-if (opticsLensUI) {
-  opticsLensUI.addEventListener(
-    "wheel",
-    (event) => {
-      event.stopPropagation();
-      event.preventDefault();
-
-      const scrollDirection = Math.sign(event.deltaY);
-
-      if (event.shiftKey) {
-        // --- Resize the Glass (Maintaining 16:9 Ratio) ---
-        currentLensWidth += scrollDirection * -32;
-        currentLensWidth = Math.max(160, Math.min(currentLensWidth, 960));
-
-        const currentLensHeight = currentLensWidth * (9 / 16); // The 16:9 Math lock
-
-        opticsLensUI.style.width = `${currentLensWidth}px`;
-        opticsLensUI.style.height = `${currentLensHeight}px`;
-        opticsRenderer.setSize(currentLensWidth, currentLensHeight);
-      } else {
-        // --- Zoom the Lens ---
-        const zoomFactor = scrollDirection > 0 ? 1.1 : 0.9;
-        opticsCamera.fov *= zoomFactor;
-        opticsCamera.fov = Math.max(0.1, Math.min(opticsCamera.fov, 40));
-        opticsCamera.updateProjectionMatrix();
-      }
-    },
-    { passive: false },
-  );
-}
-// ==========================================
-
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
   logarithmicDepthBuffer: true,
@@ -139,6 +71,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 // Add this right after you create your camera and renderer!
 const controls = new OrbitControls(camera, renderer.domElement);
+window.controls = controls; // Punches a hole in the firewall so index.html can steer!
 
 // --- 1. PREVENT ORBITCONTROLS FROM STEALING SHIP STEERING ---
 controls.enablePan = false; // Disables arrow-key camera sliding completely
@@ -1309,15 +1242,22 @@ function animate() {
 
       // ALWAYS update the target! This makes the camera track the ship visually
       // even when the camera itself is parked in space.
-      controls.target.copy(ship.mesh.position);
+      // THE FIX: Only track the ship if the Map is closed!
+      if (!isMapMode) {
+        controls.target.copy(ship.mesh.position);
+      }
 
       // Let the pilot use the mouse to look around the ship!
       controls.enableRotate = true;
 
+      // ... (whatever ship controls are above this)
       controls.update();
     } else {
-      // Map mode rotation is also allowed
-      controls.enableRotate = true;
+      // --- MAP MODE / ALTERNATE STATE ---
+      // THE FIX: We completely deleted the Active Hammer and enableRotate sabotage from here!
+      // The Z-key clutch at the bottom of main.js now has total control.
+      
+      controls.update();
     }
 
     previousShipPosition.copy(ship.mesh.position);
@@ -1329,35 +1269,7 @@ function animate() {
     window.stars.rotation.y += 0.00005; // Very slow crawl
   }
 
-  // --- UPDATE TACTICAL OPTICS FEED ---
-  const opticsUI = document.getElementById("optics-container");
-  if (opticsUI && opticsUI.style.display === "block") {
-    // 1. Find the exact center of the UI circle on the screen
-    const opticsRect = document
-      .getElementById("tactical-optics")
-      .getBoundingClientRect();
-    const centerX = opticsRect.left + opticsRect.width / 2;
-    const centerY = opticsRect.top + opticsRect.height / 2;
-
-    // 2. Convert to Three.js coordinates (-1 to +1)
-    opticsMouseNDC.x = (centerX / window.innerWidth) * 2 - 1;
-    opticsMouseNDC.y = -(centerY / window.innerHeight) * 2 + 1;
-
-    // 3. Shoot a targeting laser through the UI dot to the solar system floor
-    opticsRaycaster.setFromCamera(opticsMouseNDC, camera);
-    opticsRaycaster.ray.intersectPlane(eclipticPlane, opticsTarget);
-
-    if (opticsTarget) {
-      // 4. Position the optics camera with the main camera, but point it at the target
-      opticsCamera.position.copy(camera.position);
-      opticsCamera.lookAt(opticsTarget);
-
-      // 5. Broadcast the live video feed to the circle!
-      opticsRenderer.render(scene, opticsCamera);
-    }
-  }
-
-  // --- PHOBOS ORBIT PHYSICS ---
+    // --- PHOBOS ORBIT PHYSICS ---
   if (typeof phobosPivot !== "undefined") {
     const phobosOrbitPeriod = 0.3;
     phobosPivot.rotation.y =
@@ -1423,8 +1335,12 @@ function animate() {
     controls.update(); // Update mouse math for Waldo mode
   } else {
     // --- STABLE CAMERA TRACKING ---
-    // 1. Tell the controller to strictly follow the ship
-    controls.target.copy(ship.mesh.position);
+    // 1. Tell the controller to strictly follow the ship...
+    // ...UNLESS the Tactical Map is open!
+    if (!isMapMode) {
+      controls.target.copy(ship.mesh.position);
+    }
+    
     // 2. Render the frame first
     renderer.render(scene, camera);
     // 3. Update the controls last
@@ -1621,50 +1537,38 @@ window.addEventListener("contextmenu", (event) => {
     document.body.style.cursor = "none"; // Turn it completely invisible
   }
 });
-// 2. Dragging Logic (With Precision Aim)
-let isDraggingOptics = false;
-let lastMouseX = 0;
-let lastMouseY = 0;
+// --- TACTICAL MAP Z-KEY PANNING CLUTCH (RESTRICTED, WIRED & POWERED) ---
+let isZPressed = false;
+const panIndicator = document.getElementById('pan-indicator'); // Find the new light
 
-opticsLens.addEventListener("mousedown", (e) => {
-  isDraggingOptics = true;
-  lastMouseX = e.clientX;
-  lastMouseY = e.clientY;
+window.addEventListener('keydown', (event) => {
+    // 1. SAFETY LOCK: If the Map is closed, ignore the Z key completely!
+    if (!isMapMode) return;
 
-  // Lock in the exact starting position so it doesn't snap
-  const rect = opticsContainer.getBoundingClientRect();
-  opticsContainer.style.left = `${rect.left}px`;
-  opticsContainer.style.top = `${rect.top}px`;
-  opticsContainer.style.right = "auto"; // Release the right anchor
+    if (event.key.toLowerCase() === 'z' && !isZPressed) {
+        isZPressed = true;
+        
+        controls.enableRotate = false;      // Turn off rotation
+        controls.enablePan = true;          // <-- THE MISSING ENGINE POWER!
+        controls.screenSpacePanning = true; 
+        controls.mouseButtons.LEFT = 2;     // Swap to PAN
+        
+        // 2. TURN ON THE DASHBOARD LIGHT
+        if (panIndicator) panIndicator.style.display = 'block';
+    }
 });
 
-window.addEventListener("mousemove", (e) => {
-  if (!isDraggingOptics) return;
-
-  // Calculate how far the mouse moved since the last frame
-  let deltaX = e.clientX - lastMouseX;
-  let deltaY = e.clientY - lastMouseY;
-
-  // PRECISION CLUTCH: Gear down the movement if Ctrl is held
-  if (e.ctrlKey) {
-    deltaX *= 0.25; // 1/4th speed (You can change this to 0.5 for half speed)
-    deltaY *= 0.25;
-  }
-
-  // Apply the movement to the glass
-  const currentLeft = parseFloat(opticsContainer.style.left);
-  const currentTop = parseFloat(opticsContainer.style.top);
-
-  opticsContainer.style.left = `${currentLeft + deltaX}px`;
-  opticsContainer.style.top = `${currentTop + deltaY}px`;
-
-  // Save the current mouse position for the next frame
-  lastMouseX = e.clientX;
-  lastMouseY = e.clientY;
-});
-
-window.addEventListener("mouseup", () => {
-  isDraggingOptics = false;
+window.addEventListener('keyup', (event) => {
+    if (event.key.toLowerCase() === 'z') {
+        isZPressed = false;
+        
+        controls.enableRotate = true;       // Turn rotation back on
+        controls.enablePan = false;         // <-- POWER IT BACK DOWN!
+        controls.mouseButtons.LEFT = 0;     // Swap back to ROTATE
+        
+        // 3. TURN OFF THE DASHBOARD LIGHT
+        if (panIndicator) panIndicator.style.display = 'none';
+    }
 });
 
 animate();

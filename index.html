@@ -38,9 +38,10 @@
 <div id="splash-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #000408; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: #00ffff; font-family: monospace; transition: opacity 2s ease-in-out;">
     <h1 style="font-size: 2.5em; letter-spacing: 5px; margin-bottom: 20px; text-shadow: 0 0 15px #00ffff;">PORTAL ORBIT V2</h1>
     <p style="font-size: 1.2em; max-width: 600px; line-height: 1.6; color: #00aaff; border-top: 1px dashed #00ffff; border-bottom: 1px dashed #00ffff; padding: 20px 0;">
-        This is a Zen Sandbox simulation.<br><br>
-        There is no score, no damage, and no collision.<br>
-        Fly anywhere, through anything, and simply enjoy the view.
+        This is a Zen Sandbox Simulation.<br><br>
+        Created for Use with Keyboard and Mouse.<br>
+        There is no Score, no Damage, and no Collision.<br>
+        Fly Anywhere, through Anything, and Simply Enjoy the View.
     </p>
     <div style="margin-top: 40px; font-size: 0.9em; color: #ffaa00; animation: pulseLoading 1.5s infinite;">> INITIALIZING FLIGHT SYSTEMS...</div>
 </div>
@@ -61,14 +62,14 @@
             const splash = document.getElementById('splash-screen');
             if (splash) {
                 splash.style.opacity = '0'; // Trigger the 2-second CSS fade out
-                
+                splash.style.pointerEvents = 'none'; // Makes the splash "ghostly" so you can click through it immediately                
                 // Wait for the 2-second fade to finish, then completely remove it 
                 // so it doesn't block the user from clicking the simulation
                 setTimeout(() => {
                     splash.style.display = 'none';
                 }, 2000); 
             }
-        }, 5500); 
+        }, 7500); 
     });
 </script>
 
@@ -85,16 +86,7 @@
     <div id="nav-computer-layer" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 99
     99;"></div>
 
-    <div id="optics-container" style="display: none; position: absolute; top: 50px; right: 50px; z-index: 95; pointer-events: none;">
-        <div style="text-align: center; color: #00ffcc; font-family: 'Courier New', monospace; font-weight: bold; font-size: 14px; margin-bottom: 8px; text-shadow: 0 0 5px #00ffcc;">
-            TACTICAL OPTICS [Z]
-        </div>
-        
-        <div id="tactical-optics">
-            <div id="optics-center-dot"></div>
-        </div>
-    </div>
-    
+      
     <script type="module" src="src/main.js"></script>
 
     <button id="manualBtn" style="position: absolute; bottom: 70px; left: 20px; background: transparent; color: #00ffff; border: 1px solid #00ffff; padding: 8px 16px; font-family: monospace; cursor: pointer; z-index: 100;">USER MANUAL</button>
@@ -108,29 +100,42 @@
         <button id="closeManualBtn" style="position: absolute; right: 20px; background: #00ffff; color: #000; border: none; padding: 6px 12px; font-family: monospace; font-weight: bold; cursor: pointer;">X CLOSE</button>
     </div>
 
+    <div id="pan-indicator" style="display: none; color: #ffaa00; font-family: 'Courier New', monospace; font-weight: bold; font-size: 14px; margin-bottom: 8px; text-shadow: 0 0 5px #ffaa00; text-align: right;">
+        &gt;&gt; PAN MODE ACTIVE [Z]
+    </div>
+
     <div style="padding: 15px 25px 30px 25px;">
 
         <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3);">TARGETING MODES:</h3>
         <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
-            <li>> <span style="color: #00ff00;">Green Target:</span> Intercept using Warp Thrusters (W / S)</li>
-            <li>> <span style="color: #ffaa00;">Orange Target:</span> Intercept by Time Surfing (/ or ] [)</li>
+            <li>> <strong>T</strong> - Toggle Targeting HUD</li>
+            <li>> <strong>Arrows</strong> - Steer Pitch & Yaw</li>
+            <li>> <span style="color: #00ff00;">Green Target:</span> Ship Target</li>
+            <li>> <span style="color: #ffaa00;">Orange Target:</span> Tethered for Orbit and Time Surfing</li>
         </ul>
 
         <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">FLIGHT CONTROLS:</h3>
         <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
-            <li>> <strong>W S</strong> - Cinematic Warp: Hold W until stopped for distance. Tap for short bursts.</li>
+            <li>> <strong>W S</strong> - Warp to Target: Hold W until stop. Tap for Bursts.</li>
             <li>> <strong>I O</strong> - Impulse Thrusters Forward / Reverse</li>
             <li>> <strong>A D</strong> - Slide Left / Right</li>
             <li>> <strong>F C</strong> - Slide Up / Down</li>
+            <li>> <strong>Q E</strong> - Roll Left / Roll Right</li>
             <li>> <strong>SPACE</strong> - Inertial Brakes</li>
-            <li>> <strong>Arrows</strong> - Steer Pitch & Yaw (Standard Flight)</li>
+        </ul>
+
+        <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">CAMERA:</h3>
+        <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
+            <li>> <strong>Left Click + Drag</strong> - Orbit Camera</li>
+            <li>> <strong>Scroll Wheel</strong> - Zoom In / Out</li>
+            <li>> <strong>R</strong> - Cinematic Stay Camera Mode (Toggle On/Off) <span style="color: #ff5555; font-size: 0.8em;">[NEW]</span></li>
         </ul>
 
         <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">ADVANCED ORBITING <span style="color: #ff5555; font-size: 0.8em;">[NEW]</span>:</h3>
         <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
-            <li>> <strong>Hold Shift</strong> - Target Lock Override (Keeps tether while turning away)</li>
-            <li>> <strong>V</strong> - Engage Cinematic Drone Hover at current distance</li>
-            <li>> <strong>Arrows (While Hovering)</strong> - Strafe around the target's orbit ring</li>
+            <li>> <strong>V</strong> - Toggle Orbit</li>
+            <li>> <strong>Arrows (Moves Around Tethered Target)</li>
+            <li>> <strong>Hold Shift With Arrows</strong> - Rotates Ship With Tether Locked</li>
         </ul>
 
         <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">TIME SURFING:</h3>
@@ -143,25 +148,10 @@
 
         <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">SYSTEMS:</h3>
         <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
-            <li>> <strong>T</strong> - Toggle Nav Computer</li>
             <li>> <strong>X</strong> - Swap Transport / Shuttle</li>
             <li>> <strong>B</strong> - Docking Tractor Beam at Earth Space Station</li>
-            <li>> <strong>M</strong> - 3D Tactical Map Viewing</li>
-            <li>> <strong>Z</strong> - Target Looking Glass</li>
-            <li>> <strong>L-Shift + Scroll</strong> - Resize Looking Glass Window</li>
-        </ul>
-
-        <h3 style="color: #00aaff; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(0, 170, 255, 0.3); margin-top: 20px;">CAMERA:</h3>
-        <ul style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
-            <li>> <strong>Left Click + Drag</strong> - Orbit Camera</li>
-            <li>> <strong>Scroll Wheel</strong> - Zoom In / Out</li>
-            <li>> <strong>R</strong> - Cinematic Stay Camera Mode (Toggle On/Off) <span style="color: #ff5555; font-size: 0.8em;">[NEW]</span></li>
-        </ul>
-
-        <h3 style="color: #ffaa00; font-size: 1em; margin-bottom: 5px; border-bottom: 1px solid rgba(255, 170, 0, 0.3); margin-top: 20px;">VIDEO TUTORIALS <span style="color: #ff5555; font-size: 0.8em;">[NEW]</span>:</h3>
-        <ul id="video-toc-list" style="list-style: none; padding: 0; margin-top: 0; font-size: 0.9em; line-height: 1.8;">
-            <li class="video-link" style="cursor: pointer; transition: color 0.2s; color: #00ffff;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#00ffff'">> Basic Flight & Impulse Engines</li>
-            <li class="video-link" style="cursor: pointer; transition: color 0.2s; color: #00ffff;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#00ffff'">> Advanced Orbiting & Cinematic Hover</li>
+            <li>> <strong>M</strong> - 3D Tactical Map Viewing Mouse Controls</li>
+            <li>> <strong>Z</strong> - Tactical Map Panning</li>
         </ul>
 
     </div>
@@ -200,42 +190,7 @@
     document.getElementById('closeCreditsBtn').addEventListener('click', () => {
         document.getElementById('creditsModal').style.display = 'none';
     });
-    // --- TACTICAL OPTICS UI LOGIC ---
-    const opticsContainer = document.getElementById('optics-container');
-    const opticsLens = document.getElementById('tactical-optics');
-    let isOpticsActive = false;
-
-    // 1. Toggle Visibility with 'Z'
-    window.addEventListener('keydown', (event) => {
-        if (event.key.toLowerCase() === 'z') {
-            isOpticsActive = !isOpticsActive;
-            opticsContainer.style.display = isOpticsActive ? 'block' : 'none'; 
-        }
-    });
-
-    // 2. Dragging Logic (Grab the lens to move the whole container)
-    let isDraggingOptics = false;
-    let opticsOffsetX = 0;
-    let opticsOffsetY = 0;
-
-    opticsLens.addEventListener('mousedown', (e) => {
-        isDraggingOptics = true;
-        // Calculate offset based on the parent container!
-        opticsOffsetX = e.clientX - opticsContainer.getBoundingClientRect().left;
-        opticsOffsetY = e.clientY - opticsContainer.getBoundingClientRect().top;
-    });
-
-    window.addEventListener('mousemove', (e) => {
-        if (!isDraggingOptics) return;
-        opticsContainer.style.left = `${e.clientX - opticsOffsetX}px`;
-        opticsContainer.style.top = `${e.clientY - opticsOffsetY}px`;
-        opticsContainer.style.right = 'auto'; // Release the anchor
-    });
-
-    window.addEventListener('mouseup', () => {
-        isDraggingOptics = false;
-    });
-    
+       
 </script>
 
 <div id="telemetry-hud" style="position: absolute; bottom: 140px; right: 20px; display: flex; flex-direction: column-reverse; gap: 8px; pointer-events: none; z-index: 100;"></div>
@@ -267,10 +222,9 @@ const keyMap = {
     'a': 'SLIDE LEFT', 'd': 'SLIDE RIGHT',
     'f': 'SLIDE UP', 'c': 'SLIDE DOWN',
     ' ': 'INERTIAL BRAKES',
-    'v': 'CINEMATIC HOVER',
+    'v': 'TETHER ORBIT',
     'r': 'STAY CAMERA (TOGGLE)',
-    't': 'NAV COMPUTER',
-    'z': 'TACTICAL OPTICS',
+    't': 'TARGETS TOGGLE',
     'x': 'SWAP SHIP',
     'b': 'TRACTOR BEAM',
     'm': 'TACTICAL MAP',
@@ -339,10 +293,39 @@ window.addEventListener('keydown', (e) => {
         return;
     }
 
+    // --- NATIVE 'Z' HOLD LOGIC (TACTICAL PAN) ---
+    if (key === 'z') {
+        if (controls.maxDistance !== Infinity) return; // Map Mode safety lock
+
+        // IGNORE OS KEY-REPEATS! Only fire this the very first time it goes down.
+        if (e.repeat) return; 
+
+        if (!activeKeys.has('z')) {
+            activeKeys.add('z');
+            
+            // Reconfigure camera
+            controls.enableRotate = false;      
+            controls.enablePan = true;          
+            controls.screenSpacePanning = true; 
+            controls.mouseButtons.LEFT = 2; 
+
+            // Destroy any stuck warnings first
+            document.querySelectorAll('.z-pan-warning').forEach(el => el.remove());
+
+            // Create warning
+            const zToast = document.createElement('div');
+            zToast.className = 'telemetry-toast z-pan-warning'; 
+            zToast.innerHTML = '> [ Z ] TACTICAL MAP PANNING <span class="pulse-red" style="margin-left: 10px;">ON</span>';
+            telemetryHud.appendChild(zToast);
+            limitHudItems();
+        }
+        return;
+    }
+
     // FROM HERE DOWN, WE IGNORE OS KEY-REPEATS
     if (activeKeys.has(key)) return;
     
-    // --- 'V' CINEMATIC HOVER TOGGLE LOGIC ---
+    // --- 'V' ORBIT TETHER LOCK TOGGLE LOGIC ---
     if (key === 'v') {
         activeKeys.add('v');
         hoverState = !hoverState; 
@@ -350,12 +333,12 @@ window.addEventListener('keydown', (e) => {
         if (hoverState) {
             hoverToast = document.createElement('div');
             hoverToast.className = 'telemetry-toast';
-            hoverToast.innerHTML = '> [ V ] CINEMATIC HOVER <span style="color: #00ffff; margin-left: 10px;">ON</span>';
+            hoverToast.innerHTML = '> [ V ] ORBIT TETHER LOCK <span style="color: #00ffff; margin-left: 10px;">ON</span>';
             telemetryHud.appendChild(hoverToast);
             limitHudItems();
         } else {
             if (hoverToast) {
-                hoverToast.innerHTML = '> [ V ] CINEMATIC HOVER <span style="color: #aaaaaa; margin-left: 10px;">OFF</span>';
+                hoverToast.innerHTML = '> [ V ] ORBIT TETHER LOCK <span style="color: #aaaaaa; margin-left: 10px;">OFF</span>';
                 let toastToRemove = hoverToast;
                 hoverToast = null; 
                 setTimeout(() => {
@@ -429,6 +412,22 @@ window.addEventListener('keyup', (e) => {
             toastToRemove.style.opacity = '0';
             setTimeout(() => toastToRemove.remove(), 500); 
         }, 1000);
+    }
+
+    // --- NATIVE 'Z' RELEASE LOGIC ---
+    if (key === 'z') {
+        // ALWAYS remove it from the tracker just in case
+        activeKeys.delete('z');
+        
+        // ALWAYS reset the camera engines
+        controls.enableRotate = true;       
+        controls.enablePan = false;         
+        controls.mouseButtons.LEFT = 0; 
+        
+        // THE NUKE: ALWAYS destroy the warnings instantly. No questions asked.
+        document.querySelectorAll('.z-pan-warning').forEach(el => el.remove());
+        
+        return;
     }
 });
 
