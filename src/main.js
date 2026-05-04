@@ -164,7 +164,7 @@ ship.mesh.position.set(200, 0, 0);
 // import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const loader = new GLTFLoader();
-loader.load("assets/models/astronaut_static.glb", (gltf) => {
+loader.load("assets/models/astronaut.glb", (gltf) => {
   waldo = gltf.scene;
 
   waldo.traverse((n) => {
